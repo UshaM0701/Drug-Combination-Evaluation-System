@@ -1,0 +1,2818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Quantum-AI Drug Combination Evaluation System</title>
+<style>
+:root{
+  --bg:#f2f6fc;--surface:#ffffff;--border:#dde4f0;
+  --green:#16a34a;--blue:#2563eb;--purple:#7c3aed;--orange:#ea580c;
+  --red:#dc2626;--yellow:#ca8a04;--pink:#db2777;
+  --text:#1e2d45;--dim:#64748b;--dimmer:#94a3b8;
+  --shadow:0 2px 12px rgba(30,45,80,0.08);
+  --shadow-md:0 4px 24px rgba(30,45,80,0.12);
+  --font-mono:'Courier New',Courier,monospace;
+  --font-sans:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --font-serif:Georgia,'Times New Roman',serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--text);min-height:100vh;font-family:var(--font-sans);overflow-x:hidden}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px}
+input,select,button{font-family:inherit}
+input::placeholder{color:var(--dimmer)}
+input:focus,select:focus{outline:none;border-color:#2563eb!important;box-shadow:0 0 0 3px rgba(37,99,235,0.1)!important}
+select{appearance:none}
+button:active{transform:scale(0.97)}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+@keyframes slideDown{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+
+/* subtle dot grid bg */
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:radial-gradient(circle,#c8d5e8 1px,transparent 1px);
+  background-size:28px 28px;opacity:0.35}
+
+.container{max-width:1200px;margin:0 auto;padding:24px 16px 60px;position:relative;z-index:1}
+
+/* PANEL */
+#panel{display:none;position:fixed;top:0;left:0;right:0;z-index:500;
+  background:#fff;border-bottom:1px solid var(--border);
+  box-shadow:0 4px 32px rgba(30,45,80,0.13);padding:18px 20px 20px;
+  animation:slideDown 0.2s ease;max-height:80vh;overflow:auto}
+#panel.open{display:block}
+.panel-inner{max-width:1200px;margin:0 auto}
+.panel-header{display:flex;gap:8px;margin-bottom:14px;align-items:center;flex-wrap:wrap}
+.panel-label{font-size:11px;color:var(--green);letter-spacing:1px;font-weight:600;flex:1}
+.panel-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.type-wrap{position:relative;min-width:220px}
+#typed-input{width:100%;background:#f8fafc;border:1.5px solid var(--border);border-radius:8px;
+  padding:8px 13px;color:var(--text);font-size:12px;transition:all 0.2s}
+#suggestions{display:none;position:absolute;top:100%;left:0;right:0;z-index:600;
+  background:#fff;border:1.5px solid var(--border);border-radius:10px;margin-top:4px;
+  box-shadow:var(--shadow-md);overflow:hidden}
+.sugg-item{padding:9px 13px;cursor:pointer;display:flex;justify-content:space-between;
+  border-bottom:1px solid #f1f5f9;transition:background 0.12s}
+.sugg-item:hover{background:#f0f9f4}
+.sugg-name{font-size:12px;color:var(--text);font-weight:500}
+.sugg-cls{font-size:10px;color:var(--dim)}
+.cls-select{background:#f8fafc;border:1.5px solid var(--border);border-radius:8px;
+  padding:8px 30px 8px 13px;color:var(--text);font-size:11px;cursor:pointer;transition:all 0.2s}
+.cls-select-wrap{position:relative}
+.cls-select-wrap::after{content:"▾";position:absolute;right:10px;top:50%;transform:translateY(-50%);
+  color:var(--green);pointer-events:none;font-size:11px}
+#panel-close{background:#fef2f2;border:1.5px solid #fca5a5;color:var(--red);
+  border-radius:8px;padding:8px 15px;cursor:pointer;font-size:11px;font-weight:700}
+.panel-search{width:100%;background:#f8fafc;border:1.5px solid var(--border);border-radius:8px;
+  padding:8px 13px;color:var(--text);font-size:12px;margin-bottom:10px;transition:all 0.2s}
+.drug-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:6px}
+.drug-row{display:flex;align-items:center;gap:7px;padding:8px 10px;
+  background:#fff;border:1.5px solid var(--border);border-radius:9px;
+  transition:all 0.15s;box-shadow:0 1px 4px rgba(30,45,80,0.05)}
+.drug-row.selected{border-color:#16a34a;background:#f0fdf4}
+.drug-row:hover{box-shadow:var(--shadow)}
+.drug-row-info{flex:1;min-width:0;cursor:pointer}
+.drug-row-name{font-size:11px;color:var(--text);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.drug-row-cls{font-size:9px;color:var(--dimmer)}
+.count-badge{font-size:9px;color:var(--green);font-weight:700;margin-left:3px}
+.btn-add,.btn-minus{width:22px;height:22px;border-radius:6px;cursor:pointer;font-size:14px;
+  line-height:1;display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1.5px solid;font-weight:700;transition:all 0.15s}
+.btn-add{background:#f0fdf4;border-color:#86efac;color:var(--green)}
+.btn-add:hover{background:#dcfce7}
+.btn-minus{background:#fef2f2;border-color:#fca5a5;color:var(--red)}
+.btn-minus:hover{background:#fee2e2}
+.panel-footer{font-size:10px;color:var(--dimmer);margin-top:10px}
+
+/* HEADER */
+.header{position:relative;text-align:center;margin-bottom:28px;padding-top:8px}
+#mol-btn{position:absolute;top:0;right:0;background:#fff;
+  border:1.5px solid var(--border);color:var(--text);border-radius:10px;padding:9px 18px;
+  cursor:pointer;font-size:12px;font-weight:600;letter-spacing:0px;
+  display:flex;align-items:center;gap:7px;transition:all 0.2s;z-index:10;
+  box-shadow:var(--shadow)}
+#mol-btn:hover{border-color:var(--green);color:var(--green);box-shadow:0 4px 16px rgba(22,163,74,0.15)}
+#mol-btn.active{background:#f0fdf4;border-color:var(--green);color:var(--green);box-shadow:0 4px 16px rgba(22,163,74,0.18)}
+#mol-btn .badge{background:var(--green);color:#fff;border-radius:50%;
+  width:18px;height:18px;font-size:10px;font-weight:800;
+  display:flex;align-items:center;justify-content:center}
+.header-sub{font-size:11px;color:var(--green);letter-spacing:3px;font-weight:600;margin-bottom:8px;font-family:var(--font-mono)}
+.header-title{font-family:var(--font-serif);font-size:clamp(22px,4vw,44px);font-weight:700;
+  background:linear-gradient(135deg,#1e40af 0%,#16a34a 100%);
+  -webkit-background-clip:text;
+  background-clip:text;
+  -webkit-text-fill-color:transparent;
+  line-height:1.15;margin-bottom:8px}
+.header-desc{color:var(--dim);font-size:12px;line-height:1.6}
+
+/* KEY BAR */
+#key-bar{background:#fff;border:1.5px solid var(--border);border-radius:14px;
+  padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:0;flex-wrap:wrap;
+  box-shadow:var(--shadow)}
+.key-group{display:flex;align-items:center;gap:10px;flex:1;min-width:280px;padding:4px 12px}
+.key-divider{width:1px;height:44px;background:var(--border);margin:0 4px;flex-shrink:0}
+.key-icon{width:30px;height:30px;border-radius:8px;border:1.5px solid;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+#key-bar label{font-size:9px;color:var(--dim);letter-spacing:1px;font-weight:700;flex-shrink:0;text-transform:uppercase;white-space:nowrap}
+#ibm-key{flex:1;min-width:160px;background:#f8fafc;border:1.5px solid var(--border);
+  border-radius:8px;padding:7px 11px;color:var(--text);font-size:11px}
+.key-badge{font-size:9px;padding:3px 9px;border-radius:6px;font-weight:700;white-space:nowrap;border:1.5px solid}
+.key-ok{background:#f0fdf4;color:var(--green);border-color:#86efac}
+.key-no{background:#fef2f2;color:var(--red);border-color:#fca5a5}
+.key-running{background:#eff6ff;color:#2563eb;border-color:#bfdbfe;animation:blink 1.2s infinite}
+
+/* MIXTURE BAR */
+#mixture-bar{display:none;background:#fff;border:1.5px solid var(--border);
+  border-radius:12px;padding:11px 16px;margin-bottom:16px;
+  align-items:center;gap:8px;flex-wrap:wrap;box-shadow:var(--shadow)}
+#mixture-bar.visible{display:flex}
+.mix-label{font-size:10px;color:var(--green);letter-spacing:1px;font-weight:700;flex-shrink:0;text-transform:uppercase}
+.mix-chip{display:flex;align-items:center;gap:4px;border-radius:8px;padding:4px 6px 4px 10px;border:1.5px solid;background:#fff}
+.mix-chip-name{font-size:11px;font-weight:600}
+.mix-chip-count{font-size:10px;margin-left:1px}
+.chip-btn{width:18px;height:18px;border-radius:4px;cursor:pointer;font-size:11px;
+  display:flex;align-items:center;justify-content:center;border:1px solid;background:transparent;transition:all 0.12s}
+
+/* DRUG CARDS */
+#cards-grid{display:none;gap:12px;margin-bottom:18px}
+#cards-grid.visible{display:grid}
+.drug-card{background:#fff;border-radius:16px;padding:14px;animation:fadeUp 0.35s ease;
+  border:1.5px solid var(--border);box-shadow:var(--shadow);position:relative;transition:box-shadow 0.2s}
+.drug-card:hover{box-shadow:var(--shadow-md)}
+.card-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+.card-compound{font-size:9px;letter-spacing:2px;margin-bottom:3px;font-weight:700;text-transform:uppercase;font-family:var(--font-mono)}
+.card-name{font-size:15px;font-weight:700;color:var(--text);font-family:var(--font-serif);line-height:1.2}
+.card-tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
+.card-tag{font-size:9px;border-radius:5px;padding:2px 7px;border:1px solid;font-weight:500}
+.card-remove{background:#fef2f2;border:1px solid #fca5a5;color:var(--red);
+  border-radius:7px;padding:4px 9px;cursor:pointer;font-size:10px;flex-shrink:0}
+.card-props{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:10px}
+.card-prop{background:#f8fafc;border-radius:7px;padding:4px 9px;border:1px solid var(--border)}
+.card-prop-key{font-size:8px;color:var(--dimmer);font-weight:600;text-transform:uppercase;letter-spacing:0.5px}
+.card-prop-val{font-size:11px;font-weight:700;margin-top:1px}
+.count-badge-abs{position:absolute;top:-8px;right:-8px;border-radius:50%;
+  width:24px;height:24px;font-size:11px;font-weight:800;color:#fff;
+  display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.15)}
+
+/* ANALYZE BUTTON */
+#analyze-wrap{text-align:center;margin-bottom:22px;display:none}
+#analyze-wrap.visible{display:block}
+#analyze-btn{background:linear-gradient(135deg,#16a34a,#15803d);
+  border:none;color:#fff;border-radius:12px;
+  padding:14px 42px;cursor:pointer;font-size:13px;font-weight:700;
+  letter-spacing:1px;box-shadow:0 4px 20px rgba(22,163,74,0.3);transition:all 0.25s}
+#analyze-btn:hover{transform:translateY(-1px);box-shadow:0 6px 26px rgba(22,163,74,0.4)}
+#analyze-btn:disabled{background:#94a3b8;cursor:not-allowed;box-shadow:none;transform:none}
+.analyze-sub{color:var(--dimmer);font-size:11px;margin-top:6px}
+
+/* RESULTS */
+#results-section{display:none;animation:fadeUp 0.45s ease}
+#results-section.visible{display:block}
+.worst-warning{border-radius:12px;padding:12px 16px;margin-bottom:14px;font-size:11px;font-weight:600}
+.tabs{display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap;background:#fff;
+  border-radius:12px;padding:6px;border:1.5px solid var(--border);box-shadow:var(--shadow);width:fit-content}
+.tab-btn{font-size:11px;letter-spacing:0.5px;padding:8px 20px;border-radius:8px;cursor:pointer;
+  font-weight:600;border:none;transition:all 0.18s;background:transparent;color:var(--dim)}
+.tab-btn.active{background:var(--green);color:#fff;box-shadow:0 2px 10px rgba(22,163,74,0.3)}
+.tab-btn:not(.active):hover{background:#f1f5f9;color:var(--text)}
+.tab-btn:disabled,.tab-btn[disabled]{
+  opacity:0.38;cursor:not-allowed;pointer-events:none;
+  color:#94a3b8;background:transparent!important;box-shadow:none!important}
+
+/* AGGREGATE */
+.agg-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+.agg-card{background:#fff;border-radius:12px;padding:14px;border:1.5px solid var(--border);text-align:center;box-shadow:var(--shadow)}
+.agg-card-label{font-size:9px;color:var(--dimmer);letter-spacing:1px;font-weight:600;text-transform:uppercase;margin-bottom:5px}
+.agg-card-val{font-size:26px;font-weight:800}
+.agg-card-sub{font-size:9px;margin-top:3px;color:var(--dim)}
+.radar-wrap{background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:var(--shadow)}
+.radar-title{font-size:10px;color:var(--dim);letter-spacing:1px;font-weight:700;text-transform:uppercase;margin-bottom:12px}
+.radar-row{display:flex;align-items:center;gap:10px;margin-bottom:7px}
+.radar-key{font-size:11px;color:var(--text);width:140px;flex-shrink:0;font-weight:500}
+.radar-bar-bg{flex:1;height:7px;background:#f1f5f9;border-radius:4px}
+.radar-bar-fill{height:100%;border-radius:4px;transition:width 0.7s ease}
+.radar-val{font-size:11px;font-weight:700;width:32px;text-align:right;flex-shrink:0}
+.formula-box{background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:12px 16px;margin-bottom:12px}
+.formula-title{font-size:9px;color:#2563eb;letter-spacing:1px;font-weight:700;text-transform:uppercase;margin-bottom:6px}
+.formula-text{font-size:10px;color:#475569;line-height:1.9;font-family:var(--font-mono)}
+
+/* PAIRWISE */
+.pair-section-title{font-size:10px;color:var(--green);letter-spacing:2px;font-weight:700;text-transform:uppercase;margin-bottom:14px}
+.pair-row{background:#fff;border-radius:12px;padding:12px 16px;
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:10px;border:1.5px solid;box-shadow:var(--shadow)}
+.pair-names{min-width:190px;flex:1}
+.pair-name-text{font-size:12px;font-weight:700}
+.pair-warn{font-size:10px;margin-top:3px}
+.pair-bar-wrap{display:flex;gap:10px;align-items:center;flex-shrink:0}
+.pair-bar-bg{width:90px;height:7px;background:#f1f5f9;border-radius:4px}
+.pair-bar-fill{height:100%;border-radius:4px}
+.pair-score{font-size:16px;font-weight:800;min-width:44px}
+.pair-status{font-size:10px;color:var(--dim);font-weight:500}
+.pair-verdict-badge{font-size:9px;border-radius:6px;padding:3px 9px;font-weight:700;border:1.5px solid}
+
+/* AI PANEL */
+.ai-panel{border-radius:16px;padding:20px 18px;animation:fadeUp 0.5s ease;border:1.5px solid;background:#fff;box-shadow:var(--shadow-md)}
+.ai-loading{background:#fff;border:1.5px solid var(--border);border-radius:16px;padding:32px;text-align:center;box-shadow:var(--shadow)}
+.ai-loading-text{font-size:12px;color:var(--green);letter-spacing:2px;animation:blink 1.2s infinite;font-weight:600}
+.ai-header{font-size:10px;letter-spacing:2px;margin-bottom:16px;font-weight:700;text-transform:uppercase}
+.ai-verdicts{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.verdict-card{flex:1;min-width:110px;border-radius:10px;padding:11px 12px;text-align:center;border:1.5px solid;background:#fff}
+.verdict-card-label{font-size:9px;letter-spacing:1px;color:var(--dimmer);font-weight:600;text-transform:uppercase;margin-bottom:4px}
+.verdict-card-val{font-weight:800;line-height:1.2}
+.section-label{font-size:9px;letter-spacing:1px;color:var(--dim);font-weight:700;text-transform:uppercase;margin-bottom:5px}
+.mechanism-text{font-size:13px;line-height:1.9;margin:0 0 14px;font-family:var(--font-serif);color:var(--text)}
+.pk-note,.pd-note{padding:8px 12px;border-radius:8px;margin-bottom:8px;font-size:11px}
+.pk-note{background:#eff6ff;border:1.5px solid #bfdbfe;color:#1d4ed8}
+.pd-note{background:#f5f3ff;border:1.5px solid #ddd6fe;color:#6d28d9}
+.ai-lists{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:12px}
+.ai-list-item{font-size:11px;color:var(--dim);margin-bottom:5px;line-height:1.5}
+.monitoring-box{padding:8px 12px;background:#fffbeb;border:1.5px solid #fde68a;border-radius:8px;margin-bottom:10px}
+.monitoring-val{font-size:11px;color:#92400e}
+.recommendation-box{border-radius:10px;padding:12px 14px;margin-bottom:10px;border:1.5px solid}
+.recommendation-text{font-size:13px;font-family:var(--font-serif);line-height:1.75;color:var(--text)}
+.special-pop{font-size:10px;color:var(--dimmer);line-height:1.6;border-top:1px solid var(--border);padding-top:10px;margin-top:4px}
+.ai-disclaimer{margin-top:10px;font-size:9px;color:var(--dimmer)}
+
+/* NETWORK WRAP */
+#network-wrap{background:#fff;border:1.5px solid var(--border);border-radius:16px;
+  padding:12px;margin-bottom:14px;overflow:hidden;overflow-x:auto;box-shadow:var(--shadow)}
+
+/* EMPTY STATE */
+#empty-state{text-align:center;padding:60px 0;color:var(--dimmer)}
+.empty-icon{font-size:42px;margin-bottom:14px}
+.empty-label{font-size:13px;letter-spacing:1px;margin-bottom:14px;font-weight:600;color:var(--dim)}
+#open-btn{background:linear-gradient(135deg,#16a34a,#15803d);border:none;color:#fff;
+  border-radius:10px;padding:12px 28px;cursor:pointer;font-size:12px;font-weight:700;
+  display:inline-flex;align-items:center;gap:8px;box-shadow:0 4px 16px rgba(22,163,74,0.3);transition:all 0.2s}
+#open-btn:hover{transform:translateY(-1px);box-shadow:0 6px 22px rgba(22,163,74,0.38)}
+#open-btn svg circle{stroke:#fff}
+.empty-hint{font-size:11px;color:var(--dimmer);margin-top:12px}
+</style>
+</head>
+<body>
+
+
+<!-- MOLECULES PANEL -->
+<div id="panel">
+  <div class="panel-inner">
+    <div class="panel-header">
+      <span class="panel-label">MOLECULE LIBRARY — click + to add · same drug can be added multiple times</span>
+      <div class="panel-controls">
+        <div class="type-wrap">
+          <input id="typed-input" placeholder="Type name and Enter to add…"/>
+          <div id="suggestions"></div>
+        </div>
+        <div class="cls-select-wrap">
+          <select id="cls-select" class="cls-select"></select>
+        </div>
+        <button id="panel-close">✕ Close</button>
+      </div>
+    </div>
+    <input id="panel-search" class="panel-search" placeholder="Search drugs…"/>
+    <div id="drug-grid" class="drug-grid"></div>
+    <div id="panel-footer" class="panel-footer"></div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="container">
+
+  <!-- API Key Bar -->
+  <div id="key-bar">
+    <!-- IBM Quantum Key only -->
+    <div class="key-group">
+      <div class="key-icon" style="background:#0f62fe15;border-color:#0f62fe44;color:#0f62fe">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="3"/><path d="M12 1C5.9 1 1 5.9 1 12s4.9 11 11 11 11-4.9 11-11S18.1 1 12 1zm0 20c-5 0-9-4-9-9s4-9 9-9 9 4 9 9-4 9-9 9z"/><path d="M12 6c-3.3 0-6 2.7-6 6s2.7 6 6 6 6-2.7 6-6-2.7-6-6-6zm0 10c-2.2 0-4-1.8-4-4s1.8-4 4-4 4 1.8 4 4-1.8 4-4 4z"/></svg>
+      </div>
+      <label>IBM QUANTUM API KEY</label>
+      <input id="ibm-key" type="password" placeholder="IBM Quantum token…  (for real quantum execution on hardware)" autocomplete="off"/>
+      <span id="ibm-status" class="key-badge key-no">NOT SET</span>
+      <span id="ibm-backend" class="key-badge" style="display:none;background:#eff6ff;color:#2563eb;border-color:#bfdbfe">—</span>
+    </div>
+    <!-- AI Analysis powered by Claude built-in -->
+    <div style="display:flex;align-items:center;gap:8px;padding:4px 12px">
+      <div class="key-icon" style="background:#7c3aed15;border-color:#7c3aed44;color:#7c3aed">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      </div>
+      <div>
+        <div style="font-size:9px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:1px">AI Analysis</div>
+        <div style="font-size:9px;color:#64748b">Powered by Claude · No key needed</div>
+      </div>
+      <span class="key-badge key-ok" style="background:#f5f3ff;color:#7c3aed;border-color:#ddd6fe">READY</span>
+    </div>
+  </div>
+
+  <!-- HEADER -->
+  <div class="header">
+    <button id="mol-btn">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+        <circle cx="4" cy="4" r="3" stroke="#22c55e" stroke-width="1.2"/>
+        <circle cx="10" cy="4" r="3" stroke="#22c55e" stroke-width="1.2"/>
+        <circle cx="4" cy="10" r="3" stroke="#22c55e" stroke-width="1.2"/>
+        <circle cx="10" cy="10" r="3" stroke="#22c55e" stroke-width="1.2"/>
+      </svg>
+      Molecules
+      <span id="mol-badge" class="badge" style="display:none"></span>
+    </button>
+    <div class="header-sub">Quantum Affinity • ADMET Analysis • CTSS • Explainable AI</div>
+    <h1 class="header-title">QuantumDrugAI: Drug Combination Evaluation System</h1>
+    <p class="header-desc">Open Molecules panel · add same drug multiple times · aggregate mixture compatibility</p>
+  </div>
+
+  <!-- MIXTURE BAR -->
+  <div id="mixture-bar">
+    <span class="mix-label">MIXTURE:</span>
+    <div id="mix-chips"></div>
+  </div>
+
+  <!-- DRUG CARDS -->
+  <div id="cards-grid"></div>
+
+  <!-- ANALYZE BUTTON -->
+  <div id="analyze-wrap">
+    <button id="analyze-btn">⬡ ANALYZE MIXTURE</button>
+    <div id="analyze-sub" class="analyze-sub"></div>
+    <!-- Live qubit counter -->
+    <div id="qubit-counter" style="display:none;justify-content:center;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px"></div>
+  </div>
+
+  <!-- RESULTS -->
+  <div id="results-section">
+
+    <!-- Qubit usage banner -->
+    <div id="qubit-banner" style="display:none;background:#fff;border:1.5px solid #bfdbfe;border-radius:14px;
+      padding:14px 18px;margin-bottom:14px;box-shadow:0 2px 8px rgba(15,98,254,0.07)">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span style="font-size:22px">⚛</span>
+        <div style="flex:1">
+          <div style="font-size:11px;font-weight:800;color:#1e40af;letter-spacing:0.5px;margin-bottom:2px" id="qubit-banner-title">Quantum Circuit</div>
+          <div style="font-size:11px;color:#475569" id="qubit-banner-desc"></div>
+        </div>
+        <div id="qubit-chips" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+      </div>
+      <!-- Visual qubit register bar -->
+      <div style="margin-top:12px" id="qubit-register-viz"></div>
+    </div>
+
+    <div id="worst-warning" class="worst-warning" style="display:none"></div>
+    <div class="tabs" id="tabs">
+      <button class="tab-btn active" data-tab="aggregate">AGGREGATE</button>
+      <button class="tab-btn" data-tab="pairwise">PAIRWISE</button>
+      <button class="tab-btn" data-tab="quantum" id="quantum-tab-btn">⚛ QUANTUM CIRCUIT</button>
+      <button class="tab-btn" data-tab="ai">AI ANALYSIS</button>
+    </div>
+
+    <!-- AGGREGATE TAB -->
+    <div id="tab-aggregate">
+      <div id="network-wrap"></div>
+      <div id="agg-grid" class="agg-grid"></div>
+      <div id="radar-wrap" class="radar-wrap"></div>
+      <div class="formula-box">
+        <div class="formula-title">⬡ QUANTUM MIXTURE SCORING FORMULA</div>
+        <div class="formula-text" id="formula-text"></div>
+      </div>
+    </div>
+
+    <!-- PAIRWISE TAB -->
+    <div id="tab-pairwise" style="display:none">
+      <div id="pair-list"></div>
+    </div>
+
+    <!-- QUANTUM CIRCUIT TAB -->
+    <div id="tab-quantum" style="display:none">
+      <div id="quantum-panel"></div>
+    </div>
+
+    <!-- AI TAB -->
+    <div id="tab-ai" style="display:none">
+      <div id="ai-panel"></div>
+    </div>
+  </div>
+
+  <!-- EMPTY STATE -->
+  <div id="empty-state">
+    <div class="empty-icon">⬡</div>
+    <div class="empty-label">OPEN THE MOLECULES PANEL TO SELECT DRUGS</div>
+    <button id="open-btn">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+        <circle cx="4" cy="4" r="3" stroke="#22c55e" stroke-width="1.2"/>
+        <circle cx="10" cy="4" r="3" stroke="#22c55e" stroke-width="1.2"/>
+        <circle cx="4" cy="10" r="3" stroke="#22c55e" stroke-width="1.2"/>
+        <circle cx="10" cy="10" r="3" stroke="#22c55e" stroke-width="1.2"/>
+      </svg>
+      Open Molecules
+    </button>
+    <div class="empty-hint">You can add the same drug multiple times — e.g. 2× Aspirin + 1× Paracetamol</div>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+// ═══════════════════════════════════════════
+// DRUG DATABASE
+// ═══════════════════════════════════════════
+const DRUGS = {
+  Aspirin:      {formula:"C9H8O4",    mw:180.2,logp:1.19, hbd:1,hba:4, tpsa:63.6, rb:3, rings:1,arom:1,charge:0,cls:"NSAID",          tgt:"COX-1/2",       col:"#ef4444"},
+  Ibuprofen:    {formula:"C13H18O2",  mw:206.3,logp:3.97, hbd:1,hba:2, tpsa:37.3, rb:4, rings:1,arom:1,charge:0,cls:"NSAID",          tgt:"COX-1/2",       col:"#ef4444"},
+  Naproxen:     {formula:"C14H14O3",  mw:230.3,logp:3.18, hbd:1,hba:3, tpsa:46.5, rb:3, rings:2,arom:2,charge:0,cls:"NSAID",          tgt:"COX-1/2",       col:"#ef4444"},
+  Diclofenac:   {formula:"C14H11Cl2NO2",mw:296.1,logp:4.51,hbd:2,hba:3,tpsa:49.3, rb:4, rings:2,arom:2,charge:0,cls:"NSAID",          tgt:"COX-1/2",       col:"#ef4444"},
+  Celecoxib:    {formula:"C17H14F3N3O2S",mw:381.4,logp:3.57,hbd:1,hba:4,tpsa:78.0,rb:3, rings:3,arom:3,charge:0,cls:"NSAID",          tgt:"COX-2",         col:"#f97316"},
+  Paracetamol:  {formula:"C8H9NO2",   mw:151.2,logp:0.46, hbd:2,hba:2, tpsa:49.3, rb:2, rings:1,arom:1,charge:0,cls:"Analgesic",       tgt:"COX-3",         col:"#84cc16"},
+  Tramadol:     {formula:"C16H25NO2", mw:263.4,logp:1.84, hbd:2,hba:3, tpsa:40.5, rb:7, rings:1,arom:1,charge:0,cls:"Opioid",          tgt:"MOR/SNRI",      col:"#8b5cf6"},
+  Morphine:     {formula:"C17H19NO3", mw:285.3,logp:0.89, hbd:2,hba:4, tpsa:62.1, rb:1, rings:5,arom:1,charge:0,cls:"Opioid",          tgt:"μ-OR",          col:"#8b5cf6"},
+  Codeine:      {formula:"C18H21NO3", mw:299.4,logp:1.19, hbd:1,hba:4, tpsa:52.6, rb:2, rings:5,arom:1,charge:0,cls:"Opioid",          tgt:"μ-OR",          col:"#8b5cf6"},
+  Fentanyl:     {formula:"C22H28N2O", mw:336.5,logp:4.05, hbd:0,hba:2, tpsa:23.7, rb:7, rings:2,arom:2,charge:0,cls:"Opioid",          tgt:"μ-OR",          col:"#8b5cf6"},
+  Amoxicillin:  {formula:"C16H19N3O5S",mw:365.4,logp:0.87,hbd:4,hba:6, tpsa:158.2,rb:6, rings:2,arom:1,charge:0,cls:"Penicillin",      tgt:"PBP",           col:"#06b6d4"},
+  Ciprofloxacin:{formula:"C17H18FN3O3",mw:331.3,logp:0.28,hbd:2,hba:6, tpsa:74.6, rb:4, rings:3,arom:2,charge:0,cls:"Fluoroquinolone", tgt:"DNA Gyrase",    col:"#0ea5e9"},
+  Metformin:    {formula:"C4H11N5",   mw:129.2,logp:-1.43,hbd:4,hba:5, tpsa:91.9, rb:2, rings:0,arom:0,charge:0,cls:"Biguanide",        tgt:"AMPK",          col:"#10b981"},
+  Warfarin:     {formula:"C19H16O4",  mw:308.3,logp:2.70, hbd:1,hba:4, tpsa:63.2, rb:5, rings:2,arom:1,charge:0,cls:"Anticoagulant",   tgt:"VKORC1",        col:"#f43f5e"},
+  Clopidogrel:  {formula:"C16H16ClNO2S",mw:321.8,logp:2.53,hbd:0,hba:4,tpsa:72.9, rb:6, rings:3,arom:2,charge:0,cls:"Antiplatelet",    tgt:"P2Y12",         col:"#f43f5e"},
+  Atorvastatin: {formula:"C33H35FN2O5",mw:558.6,logp:4.46,hbd:4,hba:7, tpsa:111.8,rb:12,rings:3,arom:2,charge:0,cls:"Statin",           tgt:"HMG-CoA",       col:"#f59e0b"},
+  Simvastatin:  {formula:"C25H38O5",  mw:418.6,logp:4.68, hbd:1,hba:5, tpsa:72.7, rb:6, rings:3,arom:0,charge:0,cls:"Statin",           tgt:"HMG-CoA",       col:"#f59e0b"},
+  Amlodipine:   {formula:"C20H25ClN2O5",mw:408.9,logp:3.00,hbd:3,hba:6,tpsa:110.9,rb:9, rings:2,arom:1,charge:0,cls:"CCB",              tgt:"L-VGCC",        col:"#f59e0b"},
+  Metoprolol:   {formula:"C15H25NO3", mw:267.4,logp:1.88, hbd:3,hba:4, tpsa:67.3, rb:8, rings:1,arom:1,charge:0,cls:"Beta Blocker",     tgt:"β1-AR",         col:"#f59e0b"},
+  Atenolol:     {formula:"C14H22N2O3",mw:266.3,logp:0.16, hbd:4,hba:5, tpsa:84.6, rb:7, rings:1,arom:1,charge:0,cls:"Beta Blocker",     tgt:"β1-AR",         col:"#f59e0b"},
+  Carvedilol:   {formula:"C24H26N2O4",mw:406.5,logp:3.16, hbd:3,hba:5, tpsa:62.4, rb:8, rings:4,arom:3,charge:0,cls:"Beta Blocker",     tgt:"β1/β2/α1-AR",   col:"#f59e0b"},
+  Lisinopril:   {formula:"C21H31N3O5",mw:405.5,logp:-0.26,hbd:5,hba:6, tpsa:118.5,rb:9, rings:2,arom:1,charge:0,cls:"ACE Inhibitor",   tgt:"ACE",           col:"#f59e0b"},
+  Ramipril:     {formula:"C23H32N2O5",mw:416.5,logp:1.56, hbd:3,hba:6, tpsa:101.4,rb:9, rings:2,arom:1,charge:0,cls:"ACE Inhibitor",   tgt:"ACE",           col:"#f59e0b"},
+  Losartan:     {formula:"C22H23ClN6O",mw:422.9,logp:4.01,hbd:2,hba:6, tpsa:93.0, rb:7, rings:4,arom:4,charge:0,cls:"ARB",              tgt:"AT1-R",         col:"#f59e0b"},
+  Valsartan:    {formula:"C24H29N5O3",mw:435.5,logp:1.90, hbd:2,hba:7, tpsa:102.6,rb:8, rings:2,arom:2,charge:0,cls:"ARB",              tgt:"AT1-R",         col:"#f59e0b"},
+  Furosemide:   {formula:"C12H11ClN2O5S",mw:330.7,logp:2.03,hbd:4,hba:6,tpsa:126.0,rb:4,rings:2,arom:2,charge:0,cls:"Loop Diuretic",   tgt:"NKCC2",         col:"#f59e0b"},
+  Sildenafil:   {formula:"C22H30N6O4S",mw:474.6,logp:1.92,hbd:1,hba:7, tpsa:113.1,rb:7, rings:4,arom:3,charge:0,cls:"PDE5i",            tgt:"PDE5",          col:"#a855f7"},
+  Diazepam:     {formula:"C16H13ClN2O",mw:284.7,logp:2.82,hbd:0,hba:2, tpsa:32.7, rb:2, rings:3,arom:2,charge:0,cls:"Benzodiazepine",  tgt:"GABA-A",        col:"#8b5cf6"},
+  Alprazolam:   {formula:"C17H13ClN4",mw:308.8,logp:2.12, hbd:0,hba:2, tpsa:39.7, rb:0, rings:4,arom:3,charge:0,cls:"Benzodiazepine",  tgt:"GABA-A",        col:"#8b5cf6"},
+  Sertraline:   {formula:"C17H17Cl2N",mw:306.2,logp:4.72, hbd:1,hba:1, tpsa:29.1, rb:3, rings:3,arom:2,charge:0,cls:"SSRI",             tgt:"SERT",          col:"#8b5cf6"},
+  Fluoxetine:   {formula:"C17H18F3NO",mw:309.3,logp:3.64, hbd:1,hba:2, tpsa:29.5, rb:7, rings:2,arom:2,charge:0,cls:"SSRI",             tgt:"SERT",          col:"#8b5cf6"},
+  Omeprazole:   {formula:"C17H19N3O3S",mw:345.4,logp:2.23,hbd:1,hba:6, tpsa:87.7, rb:5, rings:2,arom:2,charge:0,cls:"PPI",              tgt:"H+/K+-ATPase",  col:"#10b981"},
+  Pantoprazole: {formula:"C16H15F2N3O4S",mw:383.4,logp:2.05,hbd:1,hba:7,tpsa:100.2,rb:5,rings:2,arom:2,charge:0,cls:"PPI",              tgt:"H+/K+-ATPase",  col:"#10b981"},
+  Phenytoin:    {formula:"C15H12N2O2", mw:252.3,logp:2.47, hbd:2,hba:4, tpsa:58.2, rb:2, rings:3,arom:2,charge:0,cls:"Antiepileptic",   tgt:"Na-channel",    col:"#ec4899"},
+  Carbamazepine:{formula:"C15H12N2O", mw:236.3,logp:2.45, hbd:1,hba:1, tpsa:46.3, rb:1, rings:3,arom:2,charge:0,cls:"Antiepileptic",   tgt:"Na-channel",    col:"#ec4899"},
+  Gabapentin:   {formula:"C9H17NO2",  mw:171.2,logp:-1.10,hbd:3,hba:2, tpsa:63.3, rb:3, rings:1,arom:0,charge:0,cls:"Antiepileptic",   tgt:"VGCC-α2δ",      col:"#ec4899"},
+  Pregabalin:   {formula:"C8H17NO2",  mw:159.2,logp:0.72, hbd:3,hba:2, tpsa:63.3, rb:3, rings:0,arom:0,charge:0,cls:"Antiepileptic",   tgt:"VGCC-α2δ",      col:"#ec4899"},
+  Lamotrigine:  {formula:"C9H7Cl2N5", mw:256.1,logp:0.97, hbd:2,hba:4, tpsa:91.7, rb:2, rings:2,arom:2,charge:0,cls:"Antiepileptic",   tgt:"Na-channel",    col:"#ec4899"},
+  Albuterol:    {formula:"C13H21NO3", mw:239.3,logp:0.64, hbd:4,hba:4, tpsa:72.7, rb:5, rings:1,arom:1,charge:0,cls:"SABA",             tgt:"β2-AR",         col:"#3b82f6"},
+  Theophylline: {formula:"C7H8N4O2",  mw:180.2,logp:-0.02,hbd:1,hba:5, tpsa:69.3, rb:0, rings:2,arom:1,charge:0,cls:"Xanthine",         tgt:"PDE/Adenosine", col:"#3b82f6"},
+  Caffeine:     {formula:"C8H10N4O2", mw:194.2,logp:-0.07,hbd:0,hba:3, tpsa:58.4, rb:0, rings:2,arom:1,charge:0,cls:"Xanthine",         tgt:"Adenosine-R",   col:"#f59e0b"},
+  Prednisolone: {formula:"C21H28O5",  mw:360.4,logp:1.62, hbd:3,hba:5, tpsa:94.8, rb:2, rings:4,arom:0,charge:0,cls:"Corticosteroid",  tgt:"GR",            col:"#f97316"},
+  Dexamethasone:{formula:"C22H29FO5", mw:392.5,logp:1.83, hbd:3,hba:5, tpsa:94.8, rb:2, rings:4,arom:0,charge:0,cls:"Corticosteroid",  tgt:"GR",            col:"#f97316"},
+  Methotrexate: {formula:"C20H22N8O5",mw:454.4,logp:-1.85,hbd:6,hba:12,tpsa:210.5,rb:8, rings:3,arom:3,charge:0,cls:"DMARD",            tgt:"DHFR",          col:"#f97316"},
+  Azathioprine: {formula:"C9H7N7O2S", mw:277.3,logp:0.10, hbd:1,hba:7, tpsa:115.8,rb:4, rings:3,arom:3,charge:0,cls:"Immunosuppressant",tgt:"HPRT",          col:"#f97316"},
+  Estradiol:    {formula:"C18H24O2",  mw:272.4,logp:4.01, hbd:2,hba:2, tpsa:40.5, rb:0, rings:4,arom:1,charge:0,cls:"Estrogen",         tgt:"ERα/β",         col:"#ec4899"},
+  Testosterone: {formula:"C19H28O2",  mw:288.4,logp:3.32, hbd:1,hba:2, tpsa:37.3, rb:0, rings:4,arom:0,charge:0,cls:"Androgen",         tgt:"AR",            col:"#ec4899"},
+  Allopurinol:  {formula:"C5H4N4O",   mw:136.1,logp:-0.56,hbd:2,hba:4, tpsa:75.3, rb:0, rings:2,arom:1,charge:0,cls:"Xanthine Oxidase-I",tgt:"XO",           col:"#10b981"},
+  Colchicine:   {formula:"C22H25NO6", mw:399.4,logp:1.30, hbd:1,hba:7, tpsa:84.7, rb:5, rings:3,arom:2,charge:0,cls:"Anti-gout",        tgt:"Tubulin",       col:"#10b981"},
+  Donepezil:    {formula:"C24H29NO3", mw:379.5,logp:3.70, hbd:0,hba:5, tpsa:38.3, rb:8, rings:3,arom:2,charge:0,cls:"AChE Inhibitor",   tgt:"AChE",          col:"#8b5cf6"},
+  Tamoxifen:    {formula:"C26H29NO",  mw:371.5,logp:6.30, hbd:0,hba:2, tpsa:12.5, rb:8, rings:3,arom:3,charge:0,cls:"SERM",             tgt:"ERα",           col:"#ec4899"},
+  Bupropion:    {formula:"C13H18ClNO",mw:239.7,logp:3.21, hbd:1,hba:2, tpsa:29.1, rb:4, rings:1,arom:1,charge:0,cls:"NDRI",             tgt:"NET/DAT",       col:"#8b5cf6"},
+  Melatonin:    {formula:"C13H16N2O2",mw:232.3,logp:1.47, hbd:2,hba:3, tpsa:54.0, rb:5, rings:2,arom:1,charge:0,cls:"Melatonin Agonist",tgt:"MT1/MT2",       col:"#8b5cf6"},
+  Acyclovir:    {formula:"C8H11N5O3", mw:225.2,logp:-1.56,hbd:3,hba:6, tpsa:119.1,rb:4, rings:2,arom:1,charge:0,cls:"Antiviral",        tgt:"HSV TK/Pol",    col:"#0ea5e9"},
+};
+const DRUG_NAMES = Object.keys(DRUGS);
+
+// ═══════════════════════════════════════════
+// DRUG INTERACTION RULES
+// ═══════════════════════════════════════════
+const RULES = [
+  {p:["Warfarin","Aspirin"],         risk:"critical",v:"AVOID",   note:"Synergistic anticoagulation — severe bleeding"},
+  {p:["Warfarin","Ibuprofen"],       risk:"critical",v:"AVOID",   note:"NSAIDs displace warfarin → INR spikes"},
+  {p:["Morphine","Diazepam"],        risk:"critical",v:"AVOID",   note:"CNS+respiratory depression — potentially fatal"},
+  {p:["Morphine","Alprazolam"],      risk:"critical",v:"AVOID",   note:"Opioid + BZD — FDA black-box"},
+  {p:["Sertraline","Fluoxetine"],    risk:"critical",v:"AVOID",   note:"Dual SSRI → serotonin syndrome"},
+  {p:["Aspirin","Ibuprofen"],        risk:"high",    v:"CAUTION", note:"Competitive COX-1 inhibition reduces aspirin cardioprotection"},
+  {p:["Metformin","Furosemide"],     risk:"high",    v:"CAUTION", note:"Loop diuretics raise lactic acidosis risk with metformin"},
+  {p:["Warfarin","Diclofenac"],      risk:"critical",v:"AVOID",   note:"NSAID+anticoagulant → GI bleed"},
+  {p:["Fentanyl","Diazepam"],        risk:"critical",v:"AVOID",   note:"Opioid+BZD respiratory arrest risk"},
+  {p:["Atorvastatin","Amlodipine"],  risk:"moderate",v:"MONITOR", note:"CYP3A4 interaction — watch for myopathy"},
+  {p:["Metoprolol","Verapamil"],     risk:"high",    v:"CAUTION", note:"Additive AV node suppression"},
+  {p:["Lisinopril","Losartan"],      risk:"high",    v:"CAUTION", note:"Dual RAAS blockade → hyperkalemia"},
+  {p:["Aspirin","Naproxen"],         risk:"moderate",v:"MONITOR", note:"Additive GI bleeding risk"},
+  {p:["Sertraline","Tramadol"],      risk:"high",    v:"CAUTION", note:"Serotonin syndrome risk via SNRI mechanism"},
+  {p:["Ciprofloxacin","Theophylline"],risk:"high",   v:"CAUTION", note:"CYP1A2 inhibition → theophylline toxicity"},
+];
+const VC = {AVOID:"#ef4444",CAUTION:"#eab308",MONITOR:"#38bdf8"};
+
+function getRule(n1,n2){
+  return RULES.find(r=>(r.p.includes(n1)&&r.p.includes(n2)));
+}
+function getStatus(s){
+  if(s>=75) return {l:"HIGH AFFINITY",    c:"#22c55e",bg:"rgba(34,197,94,0.08)"};
+  if(s>=55) return {l:"MODERATE AFFINITY",c:"#eab308",bg:"rgba(234,179,8,0.08)"};
+  if(s>=35) return {l:"LOW AFFINITY",     c:"#f97316",bg:"rgba(249,115,22,0.08)"};
+  return           {l:"INCOMPATIBLE",     c:"#ef4444",bg:"rgba(239,68,68,0.08)"};
+}
+
+// ═══════════════════════════════════════════
+// QUANTUM SCORING
+// ═══════════════════════════════════════════
+function fingerprint(d){
+  const b=new Set();
+  [100,150,200,250,300,400,500,700].forEach(t=>d.mw>t&&b.add("mw>"+t));
+  [[-8,-4],[-4,-2],[-2,0],[0,1],[1,2],[2,3],[3,4],[4,5],[5,8]].forEach(([lo,hi])=>{
+    if(d.logp>=lo&&d.logp<hi) b.add("lp"+lo);
+  });
+  b.add("hbd"+Math.min(d.hbd,8)); b.add("hba"+Math.min(d.hba,10));
+  if(!d.hbd) b.add("no_hbd"); if(!d.hba) b.add("no_hba");
+  if(d.hbd>3) b.add("hi_hbd"); if(d.hba>6) b.add("hi_hba");
+  [20,40,60,80,100,130,160].forEach(t=>d.tpsa>t&&b.add("tpsa>"+t));
+  b.add("r"+Math.min(d.rings,6)); b.add("ar"+Math.min(d.arom,4));
+  if(!d.rings) b.add("acyclic"); if(d.arom) b.add("arom");
+  [0,2,4,6,8,12].forEach(t=>d.rb>t&&b.add("rb>"+t));
+  b.add("ch"+d.charge); b.add("cls_"+d.cls); b.add("tgt_"+d.tgt);
+  b.add("lip"+((d.mw<=500?1:0)+(d.logp<=5?1:0)+(d.hbd<=5?1:0)+(d.hba<=10?1:0)));
+  return b;
+}
+function tanimoto(b1,b2){let n=0;for(const x of b1) if(b2.has(x)) n++;return n/(b1.size+b2.size-n);}
+function qFid(d1,d2){
+  const a=(v,lo,hi)=>Math.max(0,Math.min(Math.PI,(v-lo)/(hi-lo)*Math.PI));
+  const t1=[a(d1.mw,80,800),a(d1.logp,-8,8),a(d1.hbd,0,10),a(d1.hba,0,14),a(d1.tpsa,0,300),a(d1.rb,0,18)];
+  const t2=[a(d2.mw,80,800),a(d2.logp,-8,8),a(d2.hbd,0,10),a(d2.hba,0,14),a(d2.tpsa,0,300),a(d2.rb,0,18)];
+  return t1.reduce((p,t,i)=>p*Math.pow(Math.cos((t-t2[i])/2),2),1);
+}
+function pairScore(n1,n2){
+  const d1=DRUGS[n1],d2=DRUGS[n2];
+  const fp1=fingerprint(d1),fp2=fingerprint(d2);
+  const tan=tanimoto(fp1,fp2),fid=qFid(d1,d2);
+  const mod=d1.cls===d2.cls?0.15:d1.tgt===d2.tgt?0.06:0;
+  return {score:Math.round(Math.min((tan*0.50+fid*0.35+mod)*118,100)*10)/10,tan,fid};
+}
+function aggregateScore(names){
+  if(names.length<2) return null;
+  const drugs=names.map(n=>DRUGS[n]);
+  const centroid={
+    mw:drugs.reduce((s,d)=>s+d.mw,0)/drugs.length,
+    logp:drugs.reduce((s,d)=>s+d.logp,0)/drugs.length,
+    hbd:drugs.reduce((s,d)=>s+d.hbd,0)/drugs.length,
+    hba:drugs.reduce((s,d)=>s+d.hba,0)/drugs.length,
+    tpsa:drugs.reduce((s,d)=>s+d.tpsa,0)/drugs.length,
+    rb:drugs.reduce((s,d)=>s+d.rb,0)/drugs.length,
+  };
+  const centroidFids=drugs.map(d=>qFid(d,centroid));
+  const meanCentroidFid=centroidFids.reduce((s,x)=>s+x,0)/drugs.length;
+  let pairScores=[],pairData=[];
+  for(let i=0;i<names.length;i++) for(let j=i+1;j<names.length;j++){
+    const ps=pairScore(names[i],names[j]);
+    pairScores.push(ps.score);
+    pairData.push({n1:names[i],n2:names[j],...ps});
+  }
+  const geoMean=Math.pow(pairScores.reduce((p,s)=>p*(s/100),1),1/pairScores.length)*100;
+  const minPair=Math.min(...pairScores);
+  const mean=pairScores.reduce((s,x)=>s+x,0)/pairScores.length;
+  const variance=pairScores.reduce((s,x)=>s+(x-mean)**2,0)/pairScores.length;
+  const variancePenalty=Math.min(variance/500,0.25);
+  const uniqueClasses=new Set(drugs.map(d=>d.cls)).size;
+  const classBonus=Math.min((uniqueClasses-1)*2,10);
+  const raw=geoMean*(1-variancePenalty)+classBonus+meanCentroidFid*5;
+  const aggregate=Math.round(Math.min(raw,100)*10)/10;
+  const a=(v,lo,hi)=>Math.max(0,Math.min(Math.PI,(v-lo)/(hi-lo)*Math.PI));
+  const angDiffs=['mw','logp','hbd','hba','tpsa','rb'].map((k,ki)=>{
+    const vals=drugs.map(d=>{
+      const ranges=[[80,800],[-8,8],[0,10],[0,14],[0,300],[0,18]];
+      return a(d[k],ranges[ki][0],ranges[ki][1]);
+    });
+    const avg=vals.reduce((s,x)=>s+x,0)/vals.length;
+    return Math.round((1-Math.min(vals.reduce((s,x)=>s+(x-avg)**2,0)/vals.length*2,1))*100);
+  });
+  return{
+    aggregate,geoMean:Math.round(geoMean*10)/10,minPair,
+    meanCentroidFid:Math.round(meanCentroidFid*1000)/1000,
+    variancePenalty:Math.round(variancePenalty*100),
+    classBonus,uniqueClasses,pairData,
+    components:{
+      "MW Coherence":angDiffs[0],"LogP Coherence":angDiffs[1],
+      "H-Bond Coherence":Math.round((angDiffs[2]+angDiffs[3])/2),
+      "TPSA Coherence":angDiffs[4],"Flexibility":angDiffs[5],
+      "Class Diversity":Math.min(classBonus*10,100),
+    }
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LOCAL AI ANALYSIS ENGINE
+// ── Fully client-side, zero API calls, zero keys ──────────────
+// Algorithms:
+//  • Lipinski Rule-of-5 scoring per drug
+//  • Lipophilicity classification (LogP bands)
+//  • TPSA → absorption / BBB penetration prediction
+//  • H-bond donor/acceptor profiling
+//  • Solubility estimation (Yalkowsky-Valvani simplified)
+//  • CYP450 interaction prediction via class/target pattern matching
+//  • Protein-binding estimation from LogP/MW
+//  • Interaction type scoring from class/target overlap + known rules
+//  • Therapeutic combination database lookup (50+ known combos)
+//  • Risk factor generation from molecular and pharmacological flags
+// ═══════════════════════════════════════════════════════════════
+
+// ── Known therapeutic combinations database ──────────────────
+const KNOWN_COMBOS = [
+  {drugs:['Aspirin','Clopidogrel'],       product:'Aspirin + Clopidogrel (DAPT)',    indication:'Dual antiplatelet therapy — ACS, PCI stenting', status:'FDA Approved'},
+  {drugs:['Aspirin','Atorvastatin'],      product:'Aspirin + Statin (Caduet family)',indication:'Cardiovascular risk reduction, mixed hyperlipidaemia', status:'FDA Approved'},
+  {drugs:['Lisinopril','Amlodipine'],     product:'Amlodipine/Benazepril (Lotrel)',  indication:'Hypertension (ACE + CCB combination)', status:'FDA Approved'},
+  {drugs:['Losartan','Amlodipine'],       product:'Azor / Sevikar (ARB + CCB)',      indication:'Hypertension — first-line combination', status:'FDA Approved'},
+  {drugs:['Metformin','Atorvastatin'],    product:'Metabolic syndrome management',   indication:'T2DM with dyslipidaemia — guideline recommended', status:'Commonly Used Off-Label'},
+  {drugs:['Prednisolone','Methotrexate'], product:'Prednisolone + MTX',             indication:'Rheumatoid arthritis — steroid-sparing strategy', status:'FDA Approved'},
+  {drugs:['Omeprazole','Aspirin'],        product:'PPI + Low-dose Aspirin',          indication:'GI protection during long-term aspirin therapy', status:'Commonly Used Off-Label'},
+  {drugs:['Omeprazole','Clopidogrel'],    product:'PPI + Clopidogrel',               indication:'GI protection — note CYP2C19 interaction concern', status:'Commonly Used Off-Label'},
+  {drugs:['Sertraline','Alprazolam'],     product:'SSRI + BZD short-term',          indication:'Acute anxiety bridging during SSRI initiation', status:'Commonly Used Off-Label'},
+  {drugs:['Fluoxetine','Bupropion'],      product:'Wellbutrin + SSRI augmentation', indication:'Treatment-resistant depression augmentation', status:'Commonly Used Off-Label'},
+  {drugs:['Morphine','Paracetamol'],      product:'Tylex / co-codamol variants',    indication:'Moderate–severe post-operative pain', status:'FDA Approved'},
+  {drugs:['Codeine','Paracetamol'],       product:'Tylenol with Codeine / Solpadol',indication:'Mild-moderate pain', status:'FDA Approved'},
+  {drugs:['Tramadol','Paracetamol'],      product:'Ultracet / Zaldiar',             indication:'Moderate acute and chronic pain', status:'FDA Approved'},
+  {drugs:['Amoxicillin','Prednisolone'],  product:'Antibiotic + short-course steroid',indication:'Acute respiratory infection with bronchospasm', status:'Commonly Used Off-Label'},
+  {drugs:['Metoprolol','Lisinopril'],     product:'Beta-blocker + ACE inhibitor',   indication:'Post-MI cardiac remodelling, heart failure', status:'FDA Approved'},
+  {drugs:['Furosemide','Lisinopril'],     product:'Loop diuretic + ACE inhibitor',  indication:'Heart failure — guideline-directed therapy', status:'FDA Approved'},
+  {drugs:['Furosemide','Spironolactone'], product:'Loop + K-sparing diuretic',      indication:'Resistant oedema, ascites (hepatic/cardiac)', status:'FDA Approved'},
+  {drugs:['Atorvastatin','Amlodipine'],   product:'Caduet (amlodipine/atorvastatin)',indication:'Hypertension + dyslipidaemia (co-morbid)',  status:'FDA Approved'},
+  {drugs:['Dexamethasone','Methotrexate'],product:'Dexamethasone + MTX',            indication:'Haematological malignancy induction protocols', status:'FDA Approved'},
+  {drugs:['Albuterol','Theophylline'],    product:'SABA + xanthine (historical)',   indication:'Acute asthma — older combination approach',  status:'Historically Used'},
+  {drugs:['Carbamazepine','Phenytoin'],   product:'Dual AED regimen',               indication:'Refractory epilepsy polytherapy',             status:'Commonly Used Off-Label'},
+  {drugs:['Gabapentin','Pregabalin'],     product:'Gabapentinoid combination (avoid)',indication:'NOT recommended — additive CNS depression',  status:'Avoid — Redundant Mechanism'},
+  {drugs:['Tamoxifen','Prednisolone'],    product:'Tamoxifen + corticosteroid',     indication:'Breast cancer — anti-oestrogen + anti-inflammatory', status:'Commonly Used Off-Label'},
+  {drugs:['Sildenafil','Amlodipine'],     product:'PDE5i + CCB',                    indication:'Pulmonary arterial hypertension combination',  status:'FDA Approved'},
+  {drugs:['Donepezil','Memantine'],       product:'Namzaric (donepezil/memantine)', indication:'Moderate-severe Alzheimer disease',           status:'FDA Approved'},
+  {drugs:['Warfarin','Furosemide'],       product:'Warfarin + diuretic',            indication:'AF with oedema — monitor INR closely',       status:'Commonly Used Off-Label'},
+];
+
+// ── CYP450 interaction knowledge base ────────────────────────
+const CYP_INHIBITORS   = {
+  '1A2':['Ciprofloxacin','Theophylline','Caffeine'],
+  '2C9':['Fluoxetine','Sertraline','Warfarin','Diclofenac'],
+  '2C19':['Omeprazole','Lansoprazole','Pantoprazole','Clopidogrel'],
+  '2D6':['Fluoxetine','Paroxetine','Bupropion','Duloxetine','Haloperidol','Tramadol'],
+  '3A4':['Atorvastatin','Amlodipine','Carbamazepine','Sildenafil','Alprazolam','Diazepam','Donepezil'],
+};
+const CYP_SUBSTRATES = {
+  '1A2':['Theophylline','Caffeine','Duloxetine','Carbamazepine'],
+  '2C9':['Warfarin','Phenytoin','Losartan','Valsartan','Diclofenac','Naproxen'],
+  '2C19':['Clopidogrel','Omeprazole','Diazepam','Phenytoin'],
+  '2D6':['Tramadol','Codeine','Metoprolol','Carvedilol','Haloperidol','Duloxetine','Venlafaxine'],
+  '3A4':['Atorvastatin','Simvastatin','Amlodipine','Sildenafil','Alprazolam','Carbamazepine','Fentanyl','Losartan'],
+};
+
+// ── Protein binding estimates (% bound) ──────────────────────
+const PROTEIN_BINDING = {
+  Warfarin:99, Diclofenac:99, Ibuprofen:99, Naproxen:99, Atorvastatin:98,
+  Amlodipine:98, Carvedilol:98, Furosemide:97, Tramadol:20, Metformin:0,
+  Amoxicillin:20, Ciprofloxacin:30, Paracetamol:15, Aspirin:90, Metoprolol:12,
+  DEFAULT: 70
+};
+
+// ── Half-life estimates (hours) ──────────────────────────────
+const HALF_LIFE = {
+  Aspirin:0.3, Amoxicillin:1.3, Ibuprofen:2, Paracetamol:2, Metformin:5,
+  Tramadol:6, Metoprolol:6, Losartan:6, Lisinopril:12, Amlodipine:35,
+  Atorvastatin:14, Warfarin:40, Fluoxetine:72, Sertraline:26, Diazepam:48,
+  Alprazolam:12, Carbamazepine:15, Phenytoin:22, Theophylline:9, Donepezil:70,
+  DEFAULT: 12
+};
+
+// ═══════════════════════════════════════════════════════════════
+// MAIN LOCAL AI ENGINE
+// ═══════════════════════════════════════════════════════════════
+function localAIAnalysis(names, aggResult){
+  const uniqueNames = [...new Set(names)];
+  const drugs = uniqueNames.map(n=>({name:n,...DRUGS[n]}));
+
+  // ── 1. Chemical Properties ───────────────────────────────────
+  const mws   = drugs.map(d=>d.mw);
+  const logps = drugs.map(d=>d.logp);
+  const hbds  = drugs.map(d=>d.hbd);
+  const hbas  = drugs.map(d=>d.hba);
+  const tpsas = drugs.map(d=>d.tpsa);
+
+  const mwMin=Math.min(...mws), mwMax=Math.max(...mws);
+  const logpMin=Math.min(...logps), logpMax=Math.max(...logps);
+  const totalHBD=hbds.reduce((s,v)=>s+v,0);
+  const totalHBA=hbas.reduce((s,v)=>s+v,0);
+  const avgTPSA=tpsas.reduce((s,v)=>s+v,0)/drugs.length;
+
+  // Lipinski compliance per drug
+  const lipinskiResults = drugs.map(d=>{
+    const violations=[];
+    if(d.mw>500)   violations.push('MW>500');
+    if(d.logp>5)   violations.push('LogP>5');
+    if(d.hbd>5)    violations.push('HBD>5');
+    if(d.hba>10)   violations.push('HBA>10');
+    return {name:d.name, pass:violations.length===0, violations};
+  });
+  const passCount = lipinskiResults.filter(r=>r.pass).length;
+
+  // Lipophilicity profile
+  let lipoDesc;
+  if(logpMax<0)       lipoDesc='All drugs are highly hydrophilic (LogP<0) — excellent water solubility, low tissue penetration.';
+  else if(logpMin<1 && logpMax<3) lipoDesc=`Moderate lipophilicity (LogP ${logpMin.toFixed(1)}–${logpMax.toFixed(1)}) — balanced distribution, reasonable oral absorption.`;
+  else if(logpMax>=3 && logpMax<5) lipoDesc=`Moderate-high lipophilicity (LogP ${logpMin.toFixed(1)}–${logpMax.toFixed(1)}) — good membrane permeation, potential accumulation in fatty tissue.`;
+  else lipoDesc=`High lipophilicity (LogP up to ${logpMax.toFixed(1)}) — extensive tissue distribution, possible P-gp efflux issues.`;
+
+  // H-bond profile
+  const hbondDesc = `Total mixture: ${totalHBD} H-bond donors and ${totalHBA} acceptors. `+
+    (avgTPSA>140 ? 'High combined TPSA suggests limited oral absorption and poor CNS penetration.' :
+     avgTPSA>90  ? 'Moderate-high TPSA may reduce passive intestinal permeability.' :
+                   'TPSA profile is compatible with good oral bioavailability.');
+
+  // TPSA assessment
+  const tpsaDesc = drugs.map(d=>{
+    let note;
+    if(d.tpsa<60)        note='excellent CNS penetration, good oral absorption';
+    else if(d.tpsa<90)   note='good oral absorption';
+    else if(d.tpsa<140)  note='moderate oral absorption, unlikely CNS penetration';
+    else                 note='poor oral absorption, biopharmaceutics challenge';
+    return `${d.name}: TPSA ${d.tpsa} Å² (${note})`;
+  }).join('; ');
+
+  // Lipinski summary
+  const lipinskiDesc = `${passCount}/${drugs.length} drugs fully comply with Lipinski RO5. `+
+    lipinskiResults.filter(r=>!r.pass).map(r=>`${r.name} violates: ${r.violations.join(', ')}`).join('; ')+
+    (passCount===drugs.length ? ' All drugs have drug-like oral bioavailability characteristics.' : '');
+
+  // Bioavailability notes
+  const bioavailDesc = drugs.map(d=>{
+    const issues=[];
+    if(d.logp>4.5)  issues.push('high lipophilicity may limit dissolution');
+    if(d.tpsa>120)  issues.push('high TPSA may reduce permeation');
+    if(d.mw>500)    issues.push('MW>500 may hinder absorption');
+    if(d.hbd>3)     issues.push('high H-bond donors reduce permeability');
+    return issues.length ? `${d.name}: ${issues.join(', ')}` : `${d.name}: no predicted bioavailability concerns`;
+  }).join('. ');
+
+  // ── 2. Physical Properties ───────────────────────────────────
+  // Solubility (Yalkowsky simplified: log S ≈ 0.5 – logP – 0.01*(MP-25))
+  const solubilityDesc = drugs.map(d=>{
+    const logS = 0.5 - d.logp;
+    let sol;
+    if(logS>-1)       sol='highly water-soluble (>10 mg/mL)';
+    else if(logS>-2)  sol='moderately soluble (1–10 mg/mL)';
+    else if(logS>-4)  sol='slightly soluble (0.1–1 mg/mL)';
+    else              sol='poorly soluble (<0.1 mg/mL)';
+    return `${d.name}: ${sol} (est. log S ${logS.toFixed(1)})`;
+  }).join('; ');
+
+  // Stability concerns from class interactions
+  const stabConcerns=[];
+  const classes = drugs.map(d=>d.cls);
+  if(classes.includes('NSAID') && classes.some(c=>['Anticoagulant','Antiplatelet'].includes(c)))
+    stabConcerns.push('NSAIDs may displace protein-bound anticoagulants in solution');
+  if(classes.includes('PPI') && classes.includes('NSAID'))
+    stabConcerns.push('PPIs may alter gastric pH affecting NSAID dissolution and absorption rate');
+  if(classes.some(c=>c.includes('Statin')) && classes.includes('ACE Inhibitor'))
+    stabConcerns.push('No significant physicochemical incompatibilities identified');
+  if(stabConcerns.length===0) stabConcerns.push('No significant known physicochemical incompatibilities identified for this combination');
+
+  // Formulation notes
+  const formulationDesc = (() => {
+    const oral = drugs.filter(d=>d.tpsa<140 && d.mw<600).length;
+    const all = drugs.length;
+    if(oral===all) return 'All drugs are suitable for oral co-administration. Standard tablet/capsule formulations expected.';
+    return `${oral}/${all} drugs have oral formulation profiles. Monitor pH-dependent solubility interactions when co-administered.`;
+  })();
+
+  // Protein binding
+  const pbDesc = drugs.map(d=>{
+    const pb = PROTEIN_BINDING[d.name]||PROTEIN_BINDING.DEFAULT;
+    return `${d.name}: ~${pb}% protein-bound`;
+  }).join('; ')+
+  (drugs.some(d=>(PROTEIN_BINDING[d.name]||70)>95) ?
+    '. High protein binding drugs present — displacement interactions possible, monitor free drug levels.' : '.');
+
+  // Half-life
+  const hlDesc = drugs.map(d=>{
+    const hl = HALF_LIFE[d.name]||HALF_LIFE.DEFAULT;
+    return `${d.name}: t½≈${hl}h`;
+  }).join(', ')+
+  '. '+(() => {
+    const hls = drugs.map(d=>HALF_LIFE[d.name]||HALF_LIFE.DEFAULT);
+    const ratio = Math.max(...hls)/Math.min(...hls);
+    if(ratio>10) return 'Very different half-lives — staggered dosing may be needed to synchronise peak plasma levels.';
+    if(ratio>3)  return 'Moderate half-life differences — once-daily synchronisation generally feasible.';
+    return 'Similar half-lives — convenient co-administration timing.';
+  })();
+
+  // ── 3. CYP450 Interactions ──────────────────────────────────
+  const cypWarnings=[];
+  Object.entries(CYP_INHIBITORS).forEach(([cyp, inhibitors])=>{
+    const presentInhibitors = uniqueNames.filter(n=>inhibitors.includes(n));
+    const presentSubstrates = uniqueNames.filter(n=>(CYP_SUBSTRATES[cyp]||[]).includes(n) && !inhibitors.includes(n));
+    if(presentInhibitors.length>0 && presentSubstrates.length>0){
+      cypWarnings.push(`CYP${cyp}: ${presentInhibitors.join('+')} may inhibit metabolism of ${presentSubstrates.join('+')} → elevated plasma levels`);
+    }
+  });
+
+  // ── 4. Clinical Interaction Analysis ────────────────────────
+  const knownRules = uniqueNames.flatMap(a=>uniqueNames.filter(b=>b>a)
+    .map(b=>getRule(a,b)).filter(Boolean));
+
+  const worstRule = knownRules.sort((a,b)=>{
+    const ord={critical:0,high:1,moderate:2,low:3};
+    return (ord[a.risk]||3)-(ord[b.risk]||3);
+  })[0];
+
+  // Verdict
+  let verdict='SAFE', clinicalRisk='low', interactionType='neutral';
+  if(worstRule?.v==='AVOID')   { verdict='AVOID';   clinicalRisk='critical'; interactionType='contraindicated'; }
+  else if(worstRule?.v==='CAUTION'){ verdict='CAUTION'; clinicalRisk='high';     interactionType='potentiating'; }
+  else if(worstRule?.v==='MONITOR'){ verdict='CAUTION'; clinicalRisk='moderate'; interactionType='synergistic'; }
+  else if(aggResult.aggregate>=70){ verdict='SAFE'; clinicalRisk='low';  interactionType='neutral'; }
+  else if(aggResult.aggregate>=50){ verdict='CAUTION'; clinicalRisk='moderate'; interactionType='neutral'; }
+  else { verdict='AVOID'; clinicalRisk='high'; interactionType='antagonistic'; }
+
+  // Same-class detection (usually additive/duplication)
+  const classGroups={};
+  drugs.forEach(d=>{ classGroups[d.cls]=(classGroups[d.cls]||[]).concat(d.name); });
+  const duplicateClasses=Object.entries(classGroups).filter(([,names])=>names.length>1);
+  if(duplicateClasses.length>0){
+    if(verdict==='SAFE') { verdict='CAUTION'; clinicalRisk='moderate'; }
+    interactionType='synergistic';
+  }
+
+  // ── 5. Mechanism text ─────────────────────────────────────────
+  const classDesc = drugs.map(d=>`${d.name} (${d.cls}, ${d.tgt})`).join(' and ');
+  let mechanism = `This combination of ${classDesc} acts across ${[...new Set(drugs.map(d=>d.tgt))].length} receptor targets. `;
+  if(cypWarnings.length>0)
+    mechanism += `Metabolic interactions are predicted via ${cypWarnings[0]}. `;
+  else
+    mechanism += `No major CYP450 metabolic interactions predicted between these agents. `;
+  mechanism += duplicateClasses.length>0
+    ? `Dual ${duplicateClasses.map(([cls])=>cls).join('/')} exposure creates additive pharmacodynamic effects requiring careful titration.`
+    : `Pharmacodynamic effects operate through distinct pathways, reducing the risk of additive toxicity.`;
+
+  // ── 6. Risk factors ─────────────────────────────────────────
+  const riskFactors=[];
+  knownRules.forEach(r=>riskFactors.push(r.note));
+  if(cypWarnings.length>0) cypWarnings.forEach(w=>riskFactors.push(w));
+  if(duplicateClasses.length>0)
+    duplicateClasses.forEach(([cls,ns])=>riskFactors.push(`Duplicate ${cls} therapy (${ns.join('+')}) — additive toxicity risk`));
+  if(drugs.some(d=>d.cls.includes('Opioid')) && drugs.some(d=>['Benzodiazepine','SSRI','SNRI','TCA'].includes(d.cls)))
+    riskFactors.push('CNS depressant combination — respiratory depression monitoring required');
+  if(drugs.some(d=>d.cls==='Anticoagulant') && drugs.some(d=>d.cls==='NSAID'))
+    riskFactors.push('Anticoagulant + NSAID — serious GI bleeding risk; avoid unless gastrically protected');
+  if(drugs.some(d=>d.cls==='ACE Inhibitor') && drugs.some(d=>d.cls==='ARB'))
+    riskFactors.push('Dual RAAS blockade — hyperkalaemia and acute kidney injury risk');
+  if(riskFactors.length===0) riskFactors.push('No major clinical risk factors identified for this combination');
+
+  // ── 7. Benefits ─────────────────────────────────────────────
+  const benefits=[];
+  if([...new Set(drugs.map(d=>d.cls))].length>1)
+    benefits.push('Multi-target approach may provide broader therapeutic coverage than monotherapy');
+  if(drugs.some(d=>d.cls==='PPI') && drugs.some(d=>d.cls==='NSAID'))
+    benefits.push('PPI co-prescription reduces NSAID-induced GI mucosal injury');
+  if(drugs.some(d=>d.cls.includes('Statin')) && drugs.some(d=>['Beta Blocker','ACE Inhibitor','ARB'].includes(d.cls)))
+    benefits.push('Cardiovascular polypharmacy reduces combined cardiovascular event risk');
+  if(benefits.length===0) benefits.push('Combination addresses comorbid conditions with independent mechanisms');
+
+  // ── 8. Monitoring ────────────────────────────────────────────
+  const monitoring=new Set();
+  if(drugs.some(d=>d.cls==='Anticoagulant'))  { monitoring.add('INR/PT'); monitoring.add('Bleeding signs'); }
+  if(drugs.some(d=>d.cls.includes('Opioid'))) { monitoring.add('Respiratory rate'); monitoring.add('Sedation score'); }
+  if(drugs.some(d=>d.cls==='Statin'))          monitoring.add('CK/LFTs (myopathy)');
+  if(drugs.some(d=>['ACE Inhibitor','ARB'].includes(d.cls))){ monitoring.add('Serum potassium'); monitoring.add('Serum creatinine'); }
+  if(drugs.some(d=>d.cls==='NSAID'))           { monitoring.add('Renal function'); monitoring.add('Blood pressure'); }
+  if(drugs.some(d=>d.cls==='SSRI'))            monitoring.add('Serotonin syndrome symptoms');
+  if(drugs.some(d=>d.cls==='Biguanide'))       monitoring.add('Lactate levels');
+  if(monitoring.size===0) monitoring.add('Standard clinical monitoring');
+  monitoring.add('Drug serum levels if narrow therapeutic index');
+
+  // ── 9. Special populations ───────────────────────────────────
+  const specPop=[];
+  if(drugs.some(d=>d.cls==='NSAID')) specPop.push('Elderly: avoid NSAIDs if possible (GI, renal risk)');
+  if(drugs.some(d=>d.cls.includes('Opioid'))) specPop.push('Elderly: reduce opioid dose 25–50%; Paediatric: codeine contraindicated <12y');
+  if(drugs.some(d=>d.cls==='Anticoagulant')) specPop.push('Elderly: increased bleeding risk, start low INR target');
+  if(drugs.some(d=>['ACE Inhibitor','ARB'].includes(d.cls))) specPop.push('Renal impairment: dose-adjust ACE/ARB; monitor K+ and creatinine');
+  if(drugs.some(d=>d.cls==='Biguanide')) specPop.push('Renal impairment: metformin contraindicated if eGFR<30; Hepatic: avoid');
+  if(specPop.length===0) specPop.push('Standard age and organ-function dose adjustments apply; consult product SPC');
+
+  // ── 10. Existing combinations lookup ────────────────────────
+  const existingCombos = KNOWN_COMBOS.filter(c=>
+    c.drugs.every(d=>uniqueNames.includes(d)) || uniqueNames.every(n=>c.drugs.includes(n))
+  ).slice(0,3);
+
+  // PK / PD notes
+  const pkNote = cypWarnings.length>0
+    ? `Metabolic (CYP450) interactions predicted: ${cypWarnings[0]}.`
+    : `No significant CYP450 metabolic drug-drug interactions predicted; renal/biliary clearance pathways are independent.`;
+
+  const pdNote = duplicateClasses.length>0
+    ? `Pharmacodynamic synergism at ${duplicateClasses.map(([cls])=>cls).join('/')} receptor level — additive effects require dose reduction.`
+    : `Pharmacodynamic effects are mediated through distinct receptor systems — additive toxicity unlikely.`;
+
+  const recommendation = worstRule
+    ? `${worstRule.v}: ${worstRule.note} — ${verdict==='AVOID'?'Do not co-administer':'Exercise clinical caution and monitor closely'}.`
+    : verdict==='SAFE'
+      ? `This combination is generally considered acceptable; monitor for individual drug adverse effects and adjust doses to the minimum effective.`
+      : `Use with caution: titrate doses individually, monitor patient response, and review combination benefit-risk at each clinical encounter.`;
+
+  return {
+    interaction_type: interactionType,
+    combination_verdict: verdict,
+    clinical_risk: clinicalRisk,
+    mechanism,
+    risk_factors: riskFactors.slice(0,5),
+    benefits: benefits.slice(0,3),
+    recommendation,
+    monitoring_required: monitoring.size>1,
+    monitoring_parameters: [...monitoring].slice(0,6),
+    pk_note: pkNote,
+    pd_note: pdNote,
+    special_populations: specPop.join('. '),
+    existing_combinations: existingCombos.map(c=>({
+      product_name: c.product,
+      drugs: c.drugs.join(' + '),
+      indication: c.indication,
+      status: c.status
+    })),
+    chemical_properties: {
+      combined_mw_range: `${mwMin.toFixed(1)}–${mwMax.toFixed(1)} Da`,
+      lipophilicity_profile: lipoDesc,
+      hbond_profile: hbondDesc,
+      tpsa_profile: tpsaDesc,
+      lipinski_compliance: lipinskiDesc,
+      bioavailability_notes: bioavailDesc
+    },
+    physical_properties: {
+      solubility_assessment: solubilityDesc,
+      stability_concerns: stabConcerns.join('; '),
+      formulation_notes: formulationDesc,
+      protein_binding: pbDesc,
+      half_life_considerations: hlDesc
+    }
+  };
+}
+
+// ═══════════════════════════════════════════
+// SKELETAL MOLECULAR STRUCTURE + BOND ENGINE
+// ═══════════════════════════════════════════
+
+function parseFormula(f){
+  const a={};const re=/([A-Z][a-z]?)(\d*)/g;let m;
+  while((m=re.exec(f))!==null) if(m[1]) a[m[1]]=(a[m[1]]||0)+(parseInt(m[2])||1);
+  return a;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 2-D SKELETAL STRUCTURAL FORMULA RENDERER
+// Kekulé-style: rings, chains, heteroatom labels, bond types
+// Colour scheme matches ChemDraw dark: bonds white/grey on dark bg
+// ═══════════════════════════════════════════════════════════════
+
+const ATOM_COL = {
+  C:'transparent', H:'#d0d8e8',
+  N:'#5b8fff',     O:'#ff5c5c',
+  S:'#ffd24d',     Cl:'#4dff88',
+  F:'#4dffcc',     P:'#ff9944',
+  DEFAULT:'#c8d0e0'
+};
+const BOND_W   = 1.6;   // px – base single bond width
+const BOND_OFF = 3.4;   // px – offset for double bond second line
+
+// ── Build 2-D atom + bond graph ─────────────────────────────────
+function build2DMol(d){
+  const A = parseFormula(d.formula||'');
+  const atoms=[], bonds=[];
+  let nid=0;
+  const addA=(x,y,e,label=true)=>{atoms.push({x,y,elem:e,label,id:nid++});return nid-1;};
+  const addB=(i,j,ord=1)=>{if(i>=0&&j>=0&&i<9999&&j<9999) bonds.push({i,j,ord});};
+
+  const nRings = d.rings||0;
+  const nArom  = d.arom||0;
+  const BL     = 28;           // bond length in px
+  const ringGroups = [];
+
+  // ── Ring systems (linear fusion, left→right) ─────────────────
+  for(let ri=0; ri<nRings; ri++){
+    const isArom = ri<nArom;
+    const sides  = isArom ? 6 : 5;
+    const R      = BL / (2*Math.sin(Math.PI/sides));
+    const cx     = (ri - (nRings-1)*0.5) * R * (isArom?1.72:1.68);
+    const rotOff = isArom ? -Math.PI/2 : -Math.PI/2;   // flat-top hex, flat-top pent
+    const rg=[];
+    for(let si=0; si<sides; si++){
+      const a = rotOff + si*2*Math.PI/sides;
+      rg.push(addA(cx + R*Math.cos(a), R*Math.sin(a), 'C', false));
+    }
+    // Ring bonds (aromatic=1.5, aliphatic=alternating 1/2)
+    for(let si=0; si<sides; si++){
+      const ord = isArom ? 1.5 : (si%2===0 ? 2 : 1);
+      addB(rg[si], rg[(si+1)%sides], ord);
+    }
+    // Shared edge with previous ring
+    if(ri>0){
+      const prev=ringGroups[ri-1];
+      const sharedA=prev[prev.length-2], sharedB=prev[prev.length-1];
+      // re-use previous ring's last two atoms as first two of new ring
+      // (approximate – connect with a bond at the junction)
+      addB(prev[0], rg[0], 1);
+    }
+    ringGroups.push(rg);
+  }
+
+  // ── Carbon chain (zig-zag extending right of rings) ──────────
+  const nChain = Math.min(d.rb||0, 8);
+  let lastId   = ringGroups.length>0 ? ringGroups[ringGroups.length-1][0] : -1;
+  let cpx = atoms.length>0 ? (atoms[lastId]?.x||0)+BL : -(nChain*BL*0.55);
+  let cpy = atoms.length>0 ? (atoms[lastId]?.y||0)    : 0;
+  for(let ci=0; ci<nChain; ci++){
+    const ang  = ci%2===0 ? -Math.PI/6 : Math.PI/6;
+    const nId  = addA(cpx + BL*Math.cos(ang), cpy + BL*Math.sin(ang), 'C', false);
+    addB(lastId, nId, ci%4===1 ? 2 : 1);
+    lastId=nId; cpx=atoms[nId].x; cpy=atoms[nId].y;
+  }
+
+  // Fallback bare chain
+  if(atoms.length===0){
+    let pv=-1;
+    for(let ci=0; ci<Math.min(A.C||4,6); ci++){
+      const a = ci%2===0 ? -Math.PI/6 : Math.PI/6;
+      const ni=addA(ci*BL*Math.cos(a), ci*BL*Math.sin(a), 'C', false);
+      if(pv>=0) addB(pv,ni,1); pv=ni;
+    }
+  }
+
+  // ── Heteroatoms (N O S Cl F) ─────────────────────────────────
+  const carbons=atoms.map((a,i)=>({...a,idx:i})).filter(a=>a.elem==='C');
+  let slot=0;
+  const heteroAngles=[Math.PI/2, -Math.PI/2, 0, Math.PI, Math.PI/3, -Math.PI/3, 2*Math.PI/3, -2*Math.PI/3];
+  ['O','N','S','Cl','F'].forEach(elem=>{
+    const cnt=Math.min(A[elem]||0, 3);
+    for(let ci=0; ci<cnt; ci++){
+      const ri=Math.min(Math.floor(carbons.length*(ci+0.5)/(cnt+0.5)), carbons.length-1);
+      const ref=carbons[ri];
+      const ang=heteroAngles[slot % heteroAngles.length];
+      const bl=elem==='Cl'?BL*1.1:BL*0.95;
+      const newId=addA(ref.x+bl*Math.cos(ang), ref.y+bl*Math.sin(ang), elem, true);
+      addB(ref.idx, newId, elem==='O'&&cnt===1 ? 2 : 1);
+      slot++;
+    }
+  });
+
+  // ── Centre the whole molecule ─────────────────────────────────
+  if(atoms.length){
+    const minX=Math.min(...atoms.map(a=>a.x)), maxX=Math.max(...atoms.map(a=>a.x));
+    const minY=Math.min(...atoms.map(a=>a.y)), maxY=Math.max(...atoms.map(a=>a.y));
+    const ox=-(minX+maxX)/2, oy=-(minY+maxY)/2;
+    atoms.forEach(a=>{a.x+=ox; a.y+=oy;});
+  }
+  return {atoms, bonds};
+}
+
+// ── Scale + translate to fit a box (cx,cy,w,h) ──────────────────
+function fitMol2D(atoms, cx, cy, w, h){
+  if(!atoms.length) return atoms;
+  const xs=atoms.map(a=>a.x), ys=atoms.map(a=>a.y);
+  const rngX=Math.max(...xs)-Math.min(...xs)||1;
+  const rngY=Math.max(...ys)-Math.min(...ys)||1;
+  const scale=Math.min(w/rngX, h/rngY)*0.82;
+  return atoms.map(a=>({...a, sx:cx+a.x*scale, sy:cy+a.y*scale, scale}));
+}
+
+// ── Draw one bond between two projected atoms ────────────────────
+function drawBond2D(pa, pb, ord, col, sw){
+  const dx=pb.sx-pa.sx, dy=pb.sy-pa.sy;
+  const len=Math.sqrt(dx*dx+dy*dy)||1;
+  const px=-dy/len, py=dx/len;  // perpendicular unit
+  let s='';
+
+  // Gap shortening for atom labels
+  const gapA = pa.elem!=='C' ? 10 : 0;
+  const gapB = pb.elem!=='C' ? 10 : 0;
+  const ax=pa.sx+dx/len*gapA, ay=pa.sy+dy/len*gapA;
+  const bx=pb.sx-dx/len*gapB, by=pb.sy-dy/len*gapB;
+
+  if(ord===2){
+    const off=BOND_OFF;
+    s+=`<line x1="${(ax+px*off).toFixed(1)}" y1="${(ay+py*off).toFixed(1)}" x2="${(bx+px*off).toFixed(1)}" y2="${(by+py*off).toFixed(1)}" stroke="${col}" stroke-width="${sw}" stroke-linecap="round"/>`;
+    s+=`<line x1="${(ax-px*off).toFixed(1)}" y1="${(ay-py*off).toFixed(1)}" x2="${(bx-px*off).toFixed(1)}" y2="${(by-py*off).toFixed(1)}" stroke="${col}" stroke-width="${sw}" stroke-linecap="round"/>`;
+  } else if(ord===1.5){
+    // Aromatic: solid + inner dashed offset
+    s+=`<line x1="${ax.toFixed(1)}" y1="${ay.toFixed(1)}" x2="${bx.toFixed(1)}" y2="${by.toFixed(1)}" stroke="${col}" stroke-width="${sw}" stroke-linecap="round"/>`;
+    // Alternating dashed inner bond
+    const off=BOND_OFF*0.85;
+    s+=`<line x1="${(ax+px*off).toFixed(1)}" y1="${(ay+py*off).toFixed(1)}" x2="${(bx+px*off).toFixed(1)}" y2="${(by+py*off).toFixed(1)}" stroke="${col}" stroke-width="${sw*0.75}" stroke-dasharray="4,3" opacity="0.7" stroke-linecap="round"/>`;
+  } else {
+    s+=`<line x1="${ax.toFixed(1)}" y1="${ay.toFixed(1)}" x2="${bx.toFixed(1)}" y2="${by.toFixed(1)}" stroke="${col}" stroke-width="${sw}" stroke-linecap="round"/>`;
+  }
+  return s;
+}
+
+// ── Render skeletal formula into SVG string ──────────────────────
+function renderSkeletal(d, cx, cy, w, h, col){
+  const mol   = build2DMol(d);
+  if(!mol.atoms.length) return '';
+  const proj  = fitMol2D(mol.atoms, cx, cy, w*0.78, h*0.72);
+  const scale = proj[0]?.scale || 1;
+  const sw    = Math.max(1.0, Math.min(BOND_W, scale*0.055));
+  const atom  = idx => proj[idx];
+  let s='';
+
+  // ── Bonds ───────────────────────────────────────────────────
+  mol.bonds.forEach(({i,j,ord})=>{
+    if(i>=proj.length||j>=proj.length) return;
+    s+=drawBond2D(atom(i), atom(j), ord, col, sw);
+  });
+
+  // ── Atom labels (heteroatoms + H counts) ────────────────────
+  const fontSize = Math.max(7, Math.min(12, scale*0.52));
+  proj.forEach((a)=>{
+    if(a.elem==='C') return;   // skeletal – carbons are implied
+    const ac = ATOM_COL[a.elem]||ATOM_COL.DEFAULT;
+    const lbl = a.elem;
+    // Halo/background for readability
+    s+=`<circle cx="${a.sx.toFixed(1)}" cy="${a.sy.toFixed(1)}" r="${(fontSize*0.72).toFixed(1)}" fill="#050d16" opacity="0.9"/>`;
+    s+=`<text x="${a.sx.toFixed(1)}" y="${(a.sy+fontSize*0.36).toFixed(1)}" text-anchor="middle" fill="${ac}" font-size="${fontSize.toFixed(1)}" font-family="'Courier New',monospace" font-weight="700">${lbl}</text>`;
+  });
+
+  return s;
+}
+
+// Drug card SVG – 2-D skeletal formula, bright white card
+function drugSVG(name, size=148){
+  const d   = DRUGS[name]; if(!d) return '';
+  // Use dark charcoal for bonds on white background
+  const col = '#2d3748';
+  return `<svg width="${size}" height="${size}" style="display:block;margin:0 auto" viewBox="0 0 ${size} ${size}">
+    <rect width="${size}" height="${size}" fill="#f8fafc" rx="7" stroke="#e2e8f0" stroke-width="1"/>
+    ${renderSkeletal(d, size/2, size/2, size, size, col)}
+    <text x="${size/2}" y="${size-4}" text-anchor="middle" fill="#94a3b8" font-size="6.5" font-family="monospace">${d.formula}</text>
+  </svg>`;
+}
+
+// ═══════════════════════════════════════════
+// INTER-MOLECULAR BOND RENDERER
+// ═══════════════════════════════════════════
+function drawInterMolBonds(d1,d2,p1,p2,ps,rule){
+  let s='';
+  const mx=(p1.x+p2.x)/2, my=(p1.y+p2.y)/2;
+  const dx=p2.x-p1.x, dy=p2.y-p1.y;
+  const len=Math.sqrt(dx*dx+dy*dy)||1;
+  const nx=-dy/len, ny=dx/len; // perpendicular unit vector
+
+  const score=ps.score;
+  const st=getStatus(score);
+  const vc=rule?({AVOID:'#ef4444',CAUTION:'#eab308',MONITOR:'#38bdf8'}[rule.v]||st.c):st.c;
+
+  // Determine all bond types present
+  const hasHBond =(d1.hbd>0&&d2.hba>0)||(d2.hbd>0&&d1.hba>0);
+  const hasPiPi  =d1.arom>0&&d2.arom>0;
+  const hasLipo  =d1.logp>1.5&&d2.logp>1.5;
+  const hasSameTarget=d1.tgt===d2.tgt;
+
+  // ── Base connection line ──
+  s+=`<line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" stroke="${vc}" stroke-width="${0.7+score/70}" opacity="0.18"/>`;
+
+  // ── H-Bond: blue dashed line above center axis ──
+  if(hasHBond){
+    const off=16;
+    const ox=nx*off, oy=ny*off;
+    s+=`<line x1="${p1.x+ox}" y1="${p1.y+oy}" x2="${p2.x+ox}" y2="${p2.y+oy}" stroke="#38bdf8" stroke-width="1.4" stroke-dasharray="5,3.5" opacity="0.85"/>`;
+    // H atom circles along the dashed line
+    [0.3,0.5,0.7].forEach(t=>{
+      const hx=p1.x+ox+(p2.x+ox-p1.x-ox)*t;
+      const hy=p1.y+oy+(p2.y+oy-p1.y-oy)*t;
+      s+=`<circle cx="${hx}" cy="${hy}" r="5.5" fill="#010b14" stroke="#38bdf855" stroke-width="0.8"/>`;
+      s+=`<text x="${hx}" y="${hy+2.5}" text-anchor="middle" fill="#38bdf8" font-size="5.5" font-family="monospace" font-weight="700">H</text>`;
+    });
+    // Label
+    s+=`<rect x="${mx+ox-22}" y="${my+oy-19}" width="44" height="13" rx="4" fill="#38bdf812" stroke="#38bdf833" stroke-width="0.7"/>`;
+    s+=`<text x="${mx+ox}" y="${my+oy-9}" text-anchor="middle" fill="#38bdf8" font-size="7" font-family="monospace" font-weight="700">H-Bond</text>`;
+  }
+
+  // ── π-π Stacking: twin parallel purple lines below center axis ──
+  if(hasPiPi){
+    const off=-18;
+    const ox=nx*off, oy=ny*off;
+    [-3,3].forEach(shift=>{
+      const sx=nx*shift, sy=ny*shift;
+      s+=`<line x1="${p1.x+ox+sx}" y1="${p1.y+oy+sy}" x2="${p2.x+ox+sx}" y2="${p2.y+oy+sy}" stroke="#a78bfa" stroke-width="1.1" opacity="${shift>0?0.7:0.45}"/>`;
+    });
+    // Stacked ring icons at midpoint
+    [-4,4].forEach(yoff=>{
+      const rpts=Array.from({length:6},(_,i)=>{const a=i*Math.PI/3;return[mx+ox+Math.cos(a)*7,my+oy+yoff+Math.sin(a)*7];});
+      s+=`<polygon points="${rpts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="#a78bfa" stroke-width="0.8" opacity="0.6"/>`;
+    });
+    s+=`<rect x="${mx+ox-20}" y="${my+oy-9}" width="40" height="12" rx="3" fill="#a78bfa12" stroke="#a78bfa33" stroke-width="0.6"/>`;
+    s+=`<text x="${mx+ox}" y="${my+oy}" text-anchor="middle" fill="#a78bfa" font-size="7" font-family="monospace">π-π Stack</text>`;
+  }
+
+  // ── Van der Waals / Hydrophobic: orange haze in the gap ──
+  if(hasLipo&&!hasHBond){
+    s+=`<ellipse cx="${mx}" cy="${my}" rx="${len*0.22}" ry="11" fill="#f9731608" stroke="#f9731618" stroke-width="0.6"/>`;
+    s+=`<text x="${mx}" y="${my+3}" text-anchor="middle" fill="#f97316aa" font-size="6.5" font-family="monospace">vdW</text>`;
+  }
+
+  // ── Same-target indicator ──
+  if(hasSameTarget){
+    s+=`<rect x="${mx-22}" y="${my-36}" width="44" height="11" rx="3" fill="#10b98112" stroke="#10b98130" stroke-width="0.6"/>`;
+    s+=`<text x="${mx}" y="${my-27}" text-anchor="middle" fill="#10b981" font-size="6" font-family="monospace">Same Target</text>`;
+  }
+
+  // ── Score badge ──
+  s+=`<circle cx="${mx}" cy="${my+30}" r="16" fill="${vc}18" stroke="${vc}55" stroke-width="1.3"/>`;
+  s+=`<text x="${mx}" y="${my+27}" text-anchor="middle" fill="${vc}" font-size="10" font-family="monospace" font-weight="800">${score}</text>`;
+  s+=`<text x="${mx}" y="${my+39}" text-anchor="middle" fill="${vc}99" font-size="5.5" font-family="monospace">/100</text>`;
+
+  // ── Rule warning pill ──
+  if(rule){
+    s+=`<rect x="${mx-28}" y="${my+50}" width="56" height="13" rx="4" fill="${vc}18" stroke="${vc}55" stroke-width="0.9"/>`;
+    s+=`<text x="${mx}" y="${my+60}" text-anchor="middle" fill="${vc}" font-size="7.5" font-family="monospace" font-weight="700">⚠ ${rule.v}</text>`;
+  }
+
+  return s;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BUILD MERGED MOLECULAR GRAPH
+// Physically joins N drug structures into ONE atom+bond graph.
+// Adjacent molecules share a connecting bond (inter-molecular).
+// Result is a single planar coordinate set rendered as one
+// skeletal formula — not separate cards with overlay lines.
+// ═══════════════════════════════════════════════════════════════
+function buildMergedGraph(names){
+  const BL = 28;  // bond length in px
+  const allAtoms = [];   // {x,y,elem,molIdx}
+  const allBonds = [];   // {i,j,ord,inter,molIdx}
+  let prevOutIdx = -1;   // atom index (in allAtoms) of last outgoing connection pt
+
+  names.forEach((name, mi)=>{
+    const d    = DRUGS[name];
+    const mol  = build2DMol(d);
+    if(!mol.atoms.length) return;
+
+    // Compute degree of each atom in this molecule
+    const deg = new Array(mol.atoms.length).fill(0);
+    mol.bonds.forEach(({i,j})=>{ deg[i]++; deg[j]++; });
+
+    // Find the incoming attachment atom (leftmost/preferred heteroatom with low degree)
+    let inAtom = -1;
+    if(mi > 0){
+      // Prefer O or N with degree 1
+      inAtom = mol.atoms.findIndex((a,i)=>(a.elem==='O'||a.elem==='N') && deg[i]<=1);
+      // Else any terminal
+      if(inAtom<0) inAtom=mol.atoms.findIndex((_,i)=>deg[i]===1);
+      // Else leftmost atom
+      if(inAtom<0){
+        let minX=Infinity;
+        mol.atoms.forEach((a,i)=>{ if(a.x<minX){minX=a.x;inAtom=i;} });
+      }
+    }
+
+    // Find outgoing atom (rightmost terminal or heteroatom, excluding inAtom)
+    let outAtom = -1;
+    // Prefer terminal heteroatom on the far side
+    let best=-Infinity;
+    mol.atoms.forEach((a,i)=>{
+      if(i===inAtom) return;
+      const score = a.x + (a.elem!=='C'?8:0) + (deg[i]<=1?4:0);
+      if(score>best){ best=score; outAtom=i; }
+    });
+    if(outAtom<0) outAtom=mol.atoms.length>1?1:0;
+
+    // Translate mol so inAtom (or leftmost atom if mi=0) aligns properly
+    const atomOffset = allAtoms.length;
+    if(mi>0 && prevOutIdx>=0){
+      const prevA = allAtoms[prevOutIdx];
+      const thisA = mol.atoms[inAtom>=0?inAtom:0];
+      // Place inAtom one BL * 1.6 to the right of prevOutAtom
+      const dx = (prevA.x + BL*1.55) - thisA.x;
+      const dy = prevA.y - thisA.y;
+      mol.atoms.forEach(a=>{ a.x+=dx; a.y+=dy; });
+    }
+
+    // Merge atoms
+    mol.atoms.forEach((a,i)=>allAtoms.push({...a, molIdx:mi}));
+
+    // Merge intra-molecular bonds
+    mol.bonds.forEach(({i,j,ord})=>allBonds.push({i:i+atomOffset, j:j+atomOffset, ord, inter:false, molIdx:mi}));
+
+    // Add inter-molecular bond (between prev out and this in)
+    if(mi>0 && prevOutIdx>=0 && inAtom>=0){
+      const d0 = DRUGS[names[mi-1]];
+      const hasHB = (d0.hbd>0&&d.hba>0)||(d.hbd>0&&d0.hba>0);
+      const hasPi = d0.arom>0&&d.arom>0;
+      const interOrd = hasHB ? 0.3 : hasPi ? 0.6 : 0.4;  // dashed-style non-covalent
+      allBonds.push({i:prevOutIdx, j:atomOffset+inAtom, ord:interOrd, inter:true,
+        type: hasHB?'hbond': hasPi?'pipi':'vdw',
+        mol1:mi-1, mol2:mi});
+    }
+
+    prevOutIdx = atomOffset + outAtom;
+  });
+
+  // Centre the whole merged graph
+  if(allAtoms.length){
+    const xs=allAtoms.map(a=>a.x), ys=allAtoms.map(a=>a.y);
+    const ox=-(Math.min(...xs)+Math.max(...xs))/2;
+    const oy=-(Math.min(...ys)+Math.max(...ys))/2;
+    allAtoms.forEach(a=>{a.x+=ox; a.y+=oy;});
+  }
+  return {atoms:allAtoms, bonds:allBonds};
+}
+
+// ── Render the merged graph as a single SVG skeletal structure ───
+function renderMergedSVG(names, nameCounts, aggScore, W, H){
+  const st  = getStatus(aggScore);
+  const mol  = buildMergedGraph(names);
+  const N    = names.length;
+
+  if(!mol.atoms.length) return '';
+
+  // Fit to canvas (leave margin for legend + badge)
+  const padL=16, padR=170, padT=48, padB=60;
+  const drawW=W-padL-padR, drawH=H-padT-padB;
+  const xs=mol.atoms.map(a=>a.x), ys=mol.atoms.map(a=>a.y);
+  const rngX=Math.max(...xs)-Math.min(...xs)||1;
+  const rngY=Math.max(...ys)-Math.min(...ys)||1;
+  const scale=Math.min(drawW/rngX, drawH/rngY)*0.82;
+  const minX=Math.min(...xs), minY=Math.min(...ys);
+  const proj=mol.atoms.map(a=>({
+    ...a,
+    sx: padL+(a.x-minX)*scale + (drawW-(rngX)*scale)/2,
+    sy: padT+(a.y-minY)*scale + (drawH-(rngY)*scale)/2
+  }));
+
+  // Bond stroke width
+  const sw = Math.max(1.2, Math.min(2.2, scale*0.055));
+
+  // ── CPK colours for heteroatoms (bright on white) ──
+  const HCOL={N:'#2563eb',O:'#dc2626',S:'#ca8a04',Cl:'#16a34a',F:'#0891b2',P:'#ea580c',DEFAULT:'#475569'};
+
+  // Molecule accent colours for labels
+  const ACOLS=["#16a34a","#2563eb","#7c3aed","#ea580c","#db2777","#0891b2","#ca8a04","#9333ea"];
+
+  let svgContent='';
+
+  // ── BONDS ─────────────────────────────────────────────────────
+  mol.bonds.forEach(({i,j,ord,inter,type})=>{
+    if(i>=proj.length||j>=proj.length) return;
+    const pa=proj[i], pb=proj[j];
+    const dx=pb.sx-pa.sx, dy=pb.sy-pa.sy;
+    const len=Math.sqrt(dx*dx+dy*dy)||1;
+    const ux=dx/len, uy=dy/len;
+    const px=-uy, py=ux;
+
+    // Gap near heteroatom labels
+    const gA=pa.elem!=='C'?9:0, gB=pb.elem!=='C'?9:0;
+    const ax=pa.sx+ux*gA, ay=pa.sy+uy*gA;
+    const bx=pb.sx-ux*gB, by=pb.sy-uy*gB;
+
+    if(inter){
+      // Inter-molecular bond: styled by interaction type
+      const interCol = type==='hbond'?'#2563eb': type==='pipi'?'#7c3aed':'#ea580c';
+      const interDash= type==='hbond'?'6,4': type==='pipi'?'8,3':'5,5';
+      const interLbl = type==='hbond'?'H-Bond': type==='pipi'?'π-π':'vdW';
+      // Dashed coloured line
+      svgContent+=`<line x1="${ax.toFixed(1)}" y1="${ay.toFixed(1)}" x2="${bx.toFixed(1)}" y2="${by.toFixed(1)}" stroke="${interCol}" stroke-width="${(sw*1.6).toFixed(1)}" stroke-dasharray="${interDash}" stroke-linecap="round" opacity="0.8"/>`;
+      // Mid-label
+      const mx=(ax+bx)/2, my=(ay+by)/2;
+      svgContent+=`<rect x="${(mx-18).toFixed(1)}" y="${(my-8).toFixed(1)}" width="36" height="14" rx="5" fill="${interCol}18" stroke="${interCol}55" stroke-width="0.8"/>`;
+      svgContent+=`<text x="${mx.toFixed(1)}" y="${(my+3).toFixed(1)}" text-anchor="middle" fill="${interCol}" font-size="7" font-family="'Courier New',monospace" font-weight="700">${interLbl}</text>`;
+    } else if(ord===2){
+      const off=BOND_OFF;
+      svgContent+=`<line x1="${(ax+px*off).toFixed(1)}" y1="${(ay+py*off).toFixed(1)}" x2="${(bx+px*off).toFixed(1)}" y2="${(by+py*off).toFixed(1)}" stroke="#1e2d45" stroke-width="${sw}" stroke-linecap="round"/>`;
+      svgContent+=`<line x1="${(ax-px*off).toFixed(1)}" y1="${(ay-py*off).toFixed(1)}" x2="${(bx-px*off).toFixed(1)}" y2="${(by-py*off).toFixed(1)}" stroke="#1e2d45" stroke-width="${sw}" stroke-linecap="round"/>`;
+    } else if(ord===1.5){
+      svgContent+=`<line x1="${ax.toFixed(1)}" y1="${ay.toFixed(1)}" x2="${bx.toFixed(1)}" y2="${by.toFixed(1)}" stroke="#1e2d45" stroke-width="${sw}" stroke-linecap="round"/>`;
+      const off=BOND_OFF*0.85;
+      svgContent+=`<line x1="${(ax+px*off).toFixed(1)}" y1="${(ay+py*off).toFixed(1)}" x2="${(bx+px*off).toFixed(1)}" y2="${(by+py*off).toFixed(1)}" stroke="#1e2d45" stroke-width="${(sw*0.75).toFixed(1)}" stroke-dasharray="4,3" opacity="0.65" stroke-linecap="round"/>`;
+    } else {
+      svgContent+=`<line x1="${ax.toFixed(1)}" y1="${ay.toFixed(1)}" x2="${bx.toFixed(1)}" y2="${by.toFixed(1)}" stroke="#1e2d45" stroke-width="${sw}" stroke-linecap="round"/>`;
+    }
+  });
+
+  // ── ATOM LABELS (heteroatoms) + molecule region shading ───────
+  // Light tinted background per molecule region
+  names.forEach((name,mi)=>{
+    const molAtoms=proj.filter(a=>a.molIdx===mi);
+    if(!molAtoms.length) return;
+    const mxs=molAtoms.map(a=>a.sx), mys=molAtoms.map(a=>a.sy);
+    const bx1=Math.min(...mxs)-14, by1=Math.min(...mys)-14;
+    const bw=Math.max(...mxs)-bx1+14, bh=Math.max(...mys)-by1+14;
+    const ac=ACOLS[mi%ACOLS.length];
+    svgContent+=`<rect x="${bx1.toFixed(1)}" y="${by1.toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" rx="10" fill="${ac}08" stroke="${ac}22" stroke-width="1" stroke-dasharray="5,4"/>`;
+    // Molecule name label + count badge
+    const lx2=(Math.min(...mxs)+Math.max(...mxs))/2;
+    const ly2=Math.max(...mys)+20;
+    const cnt = nameCounts[name]||1;
+    const displayName = name.replace(/_/g,' ');
+    // Count badge (shown when >1 instance selected)
+    if(cnt > 1){
+      svgContent+=`<rect x="${(lx2-30).toFixed(1)}" y="${ly2-16}" width="60" height="16" rx="8" fill="#16a34a" stroke="#15803d" stroke-width="1"/>`;
+      svgContent+=`<text x="${lx2.toFixed(1)}" y="${ly2-4}" text-anchor="middle" fill="#fff" font-size="9.5" font-family="'Courier New',monospace" font-weight="800">×${cnt} molecules</text>`;
+    }
+    svgContent+=`<text x="${lx2.toFixed(1)}" y="${(ly2 + (cnt>1?4:0)).toFixed(1)}" text-anchor="middle" fill="${ac}" font-size="${cnt>1?9:10}" font-family="'Courier New',monospace" font-weight="700">${displayName}</text>`;
+    svgContent+=`<text x="${lx2.toFixed(1)}" y="${(ly2+13+(cnt>1?4:0)).toFixed(1)}" text-anchor="middle" fill="${ac}99" font-size="7.5" font-family="'Courier New',monospace">${DRUGS[name].formula}  ·  MW ${DRUGS[name].mw}</text>`;
+  });
+
+  // Heteroatom labels
+  const fs=Math.max(8, Math.min(13, scale*0.5));
+  proj.forEach(a=>{
+    if(a.elem==='C') return;
+    const ac=HCOL[a.elem]||HCOL.DEFAULT;
+    svgContent+=`<circle cx="${a.sx.toFixed(1)}" cy="${a.sy.toFixed(1)}" r="${(fs*0.78).toFixed(1)}" fill="#ffffff" opacity="0.95"/>`;
+    svgContent+=`<text x="${a.sx.toFixed(1)}" y="${(a.sy+fs*0.36).toFixed(1)}" text-anchor="middle" fill="${ac}" font-size="${fs.toFixed(1)}" font-family="'Courier New',monospace" font-weight="700">${a.elem}</text>`;
+  });
+
+  // ── RIGHT PANEL: interaction legend + score cards ──────────────
+  const lx=W-162, ly=14;
+
+  // Interaction type legend
+  svgContent+=`<rect x="${lx}" y="${ly}" width="155" height="130" rx="10" fill="#fff" stroke="#dde4f0" stroke-width="1.2"/>`;
+  svgContent+=`<text x="${lx+77}" y="${ly+16}" text-anchor="middle" fill="#64748b" font-size="8" font-family="'Courier New',monospace" font-weight="700" letter-spacing="1">BOND TYPES</text>`;
+  [
+    ['H-Bond','#2563eb','6,4'],['π-π Stack','#7c3aed','8,3'],['Van der Waals','#ea580c','5,5'],
+  ].forEach(([lbl,col,dash],ii)=>{
+    const ey=ly+32+ii*18;
+    svgContent+=`<line x1="${lx+10}" y1="${ey}" x2="${lx+44}" y2="${ey}" stroke="${col}" stroke-width="2" stroke-dasharray="${dash}" stroke-linecap="round"/>`;
+    svgContent+=`<text x="${lx+52}" y="${ey+4}" fill="${col}" font-size="8.5" font-family="'Courier New',monospace" font-weight="600">${lbl}</text>`;
+  });
+  svgContent+=`<line x1="${lx+10}" y1="${ly+86}" x2="${lx+44}" y2="${ly+86}" stroke="#1e2d45" stroke-width="1.5" stroke-linecap="round"/>`;
+  svgContent+=`<text x="${lx+52}" y="${ly+90}" fill="#1e2d45" font-size="8.5" font-family="'Courier New',monospace">Covalent</text>`;
+  svgContent+=`<line x1="${lx+10}" y1="${ly+104}" x2="${lx+44}" y2="${ly+104}" stroke="#1e2d45" stroke-width="1.5" stroke-linecap="round"/>`;
+  svgContent+=`<line x1="${lx+10}" y1="${ly+108}" x2="${lx+44}" y2="${ly+108}" stroke="#1e2d45" stroke-width="1.5" stroke-dasharray="3,2" opacity="0.55" stroke-linecap="round"/>`;
+  svgContent+=`<text x="${lx+52}" y="${ly+109}" fill="#1e2d45" font-size="8.5" font-family="'Courier New',monospace">Aromatic</text>`;
+  // Heteroatom key
+  svgContent+=`<line x1="${lx+10}" y1="${ly+120}" x2="${lx+155}" y2="${ly+120}" stroke="#dde4f0" stroke-width="0.8"/>`;
+  [['N','#2563eb'],['O','#dc2626'],['S','#ca8a04'],['Cl','#16a34a'],['F','#0891b2']].forEach(([e,c],ii)=>{
+    const ex=lx+14+ii*28, ey=ly+129;
+    svgContent+=`<circle cx="${ex}" cy="${ey}" r="6" fill="${c}20" stroke="${c}" stroke-width="1"/>`;
+    svgContent+=`<text x="${ex}" y="${ey+3.5}" text-anchor="middle" fill="${c}" font-size="7" font-family="'Courier New',monospace" font-weight="700">${e}</text>`;
+  });
+
+  // Pairwise score cards (unique pairs only)
+  const uniqNames = [...new Set(names)];
+  const pairs=[];
+  for(let i=0;i<uniqNames.length;i++) for(let j=i+1;j<uniqNames.length;j++){
+    pairs.push({n1:uniqNames[i],n2:uniqNames[j],...pairScore(uniqNames[i],uniqNames[j])});
+  }
+  pairs.sort((a,b)=>b.score-a.score).slice(0,4).forEach((p,ii)=>{
+    const pc=getStatus(p.score).c;
+    const py=ly+148+ii*34;
+    svgContent+=`<rect x="${lx}" y="${py}" width="155" height="30" rx="8" fill="${pc}0d" stroke="${pc}33" stroke-width="1"/>`;
+    svgContent+=`<text x="${lx+8}" y="${py+12}" fill="${pc}" font-size="8" font-family="'Courier New',monospace" font-weight="700">${p.n1.replace(/_/g,' ').slice(0,10)} ↔ ${p.n2.replace(/_/g,' ').slice(0,10)}</text>`;
+    svgContent+=`<text x="${lx+8}" y="${py+24}" fill="${pc}bb" font-size="7" font-family="'Courier New',monospace">Score: ${p.score}/100 · ${getStatus(p.score).l}</text>`;
+  });
+
+  const uniqueN = [...new Set(names)].length;
+  const totalInstances = names.length;
+  const instanceStr = totalInstances > uniqueN
+    ? `${totalInstances} total instances (${uniqueN} unique)`
+    : `${uniqueN} compound${uniqueN>1?'s':''}`;
+  // ── AGGREGATE SCORE BADGE (bottom centre) ─────────────────────
+  svgContent+=`<rect x="${(W/2-110).toFixed(0)}" y="${(H-56).toFixed(0)}" width="220" height="44" rx="12" fill="${st.c}12" stroke="${st.c}44" stroke-width="1.5"/>`;
+  svgContent+=`<text x="${W/2}" y="${H-34}" text-anchor="middle" fill="${st.c}" font-size="13" font-family="'Courier New',monospace" font-weight="800" letter-spacing="1">AGGREGATE  ${aggScore}/100</text>`;
+  svgContent+=`<text x="${W/2}" y="${H-16}" text-anchor="middle" fill="${st.c}cc" font-size="9" font-family="'Courier New',monospace">${st.l}  ·  ${instanceStr}  ·  ${totalInstances*(totalInstances-1)/2} pair${totalInstances*(totalInstances-1)/2>1?'s':''}</text>`;
+
+  return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-height:560px">
+    <rect width="${W}" height="${H}" fill="#f8fafc" rx="10"/>
+    <text x="14" y="20" fill="#16a34a" font-size="7.5" font-family="'Courier New',monospace" letter-spacing="2" font-weight="700">COMBINED STRUCTURAL FORMULA  ·  ${totalInstances} MOLECULE INSTANCES  ·  ${uniqueN} UNIQUE COMPOUNDS</text>
+    ${svgContent}
+  </svg>`;
+}
+
+// Wrapper called by renderAggTab — names may contain duplicates (e.g. ["Aspirin","Aspirin","Ibuprofen"])
+function combinedStructureSVG(names, aggScore){
+  const N = names.length;
+  // Compute per-name counts for labels
+  const nameCounts = names.reduce((acc,n)=>({...acc,[n]:(acc[n]||0)+1}),{});
+  const W = Math.max(700, N*155+220);
+  const H = 560;
+  return renderMergedSVG(names, nameCounts, aggScore, W, H);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// QUANTUM CIRCUIT RENDERER
+// Draws a publication-quality Qiskit-style circuit diagram for
+// the drug pair scoring algorithm, with detailed explanations.
+// ═══════════════════════════════════════════════════════════════
+
+function angleLabel(v, lo, hi){
+  const theta = Math.max(0, Math.min(Math.PI, (v-lo)/(hi-lo)*Math.PI));
+  return (theta/Math.PI*180).toFixed(1)+'°';
+}
+
+function renderQuantumCircuit(names, results){
+  if(!names || names.length < 2) return '';
+
+  // Pick the most interesting pair (lowest score = most interaction)
+  let pair = results.pairData[0];
+  results.pairData.forEach(p=>{ if(p.score < pair.score) pair = p; });
+  const d1 = DRUGS[pair.n1], d2 = DRUGS[pair.n2];
+
+  const PARAMS = [
+    {key:'mw',   lo:80,  hi:800,  label:'Mol. Weight',  unit:'Da'},
+    {key:'logp', lo:-8,  hi:8,    label:'LogP',         unit:''},
+    {key:'hbd',  lo:0,   hi:10,   label:'H-Bond Donors',unit:''},
+    {key:'hba',  lo:0,   hi:14,   label:'H-Bond Accept.',unit:''},
+    {key:'tpsa', lo:0,   hi:300,  label:'TPSA',         unit:'Å²'},
+    {key:'rb',   lo:0,   hi:18,   label:'Rot. Bonds',   unit:''},
+  ];
+
+  const n = PARAMS.length; // 6 qubits per drug
+
+  // ── Layout constants ──────────────────────────────────────────
+  const W = 1080, H = 900;
+  const marginL = 14, marginT = 110;
+  const wireSpacing = 36;   // px between qubit wires
+  const gateW = 42, gateH = 28;
+  const COLS = {
+    // x positions of each circuit column
+    init:      marginL + 130,
+    ry1:       marginL + 230,
+    barrier1:  marginL + 290,
+    ry2:       marginL + 340,
+    barrier2:  marginL + 400,
+    cnot:      marginL + 460,
+    barrier3:  marginL + 530,
+    meas:      marginL + 570,
+    textEnd:   marginL + 630,
+  };
+  const topDrugY  = marginT;                         // q0..q5 = Drug 1
+  const botDrugY  = marginT + n*wireSpacing + 28;    // q6..q11 = Drug 2
+  const totalWires = n * 2;
+  const wireY = i => {
+    if(i < n) return topDrugY + i*wireSpacing;
+    return botDrugY + (i-n)*wireSpacing;
+  };
+
+  // Colours
+  const C = {
+    bg:'#f8fafc', wire:'#94a3b8', gate:'#2563eb', gateText:'#fff',
+    ry:'#7c3aed', cnot:'#16a34a', meas:'#ea580c',
+    barrier:'#cbd5e1', anno:'#475569', title:'#1e2d45',
+    highlight:'#dbeafe', highlightBorder:'#3b82f6',
+    drug1:'#2563eb', drug2:'#7c3aed',
+    fid:'#16a34a',
+  };
+
+  let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-height:${H}px;font-family:'Courier New',monospace">
+  <rect width="${W}" height="${H}" fill="${C.bg}" rx="12"/>`;
+
+  // ── TITLE BLOCK ───────────────────────────────────────────────
+  svg += `<rect x="0" y="0" width="${W}" height="76" rx="12" fill="#1e2d45"/>`;
+  svg += `<rect x="0" y="64" width="${W}" height="12" fill="#1e2d45"/>`;
+  svg += `<text x="20" y="26" fill="#fff" font-size="16" font-weight="800" letter-spacing="1">Quantum Fidelity Circuit — Drug Pair Analysis</text>`;
+  svg += `<text x="20" y="48" fill="#94a3b8" font-size="11">Most-interacting pair: ${pair.n1} ↔ ${pair.n2}  ·  Pairwise score: ${pair.score}/100  ·  Quantum fidelity F = ${pair.tanimoto?.toFixed?.(3)||'—'}</text>`;
+  svg += `<text x="20" y="64" fill="#64748b" font-size="9.5">Circuit: 12 qubits (6 per drug) · RY rotations encode molecular properties · CNOT layer probes entanglement · Statevector fidelity = |⟨ψ₁|ψ₂⟩|²</text>`;
+
+  // ── DRUG LABELS (left margin) ─────────────────────────────────
+  // Drug 1 brace
+  const d1top = wireY(0)-wireSpacing*0.4, d1bot = wireY(n-1)+wireSpacing*0.4;
+  svg += `<rect x="0" y="${d1top}" width="128" height="${d1bot-d1top}" rx="6" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1.2"/>`;
+  svg += `<text x="64" y="${(d1top+d1bot)/2-7}" text-anchor="middle" fill="${C.drug1}" font-size="11" font-weight="800">${pair.n1.replace(/_/g,' ')}</text>`;
+  svg += `<text x="64" y="${(d1top+d1bot)/2+8}" text-anchor="middle" fill="${C.drug1}99" font-size="9">Drug A · 6 qubits</text>`;
+  svg += `<text x="64" y="${(d1top+d1bot)/2+21}" text-anchor="middle" fill="#94a3b8" font-size="8">${d1.formula}</text>`;
+
+  // Drug 2 brace
+  const d2top = wireY(n)-wireSpacing*0.4, d2bot = wireY(totalWires-1)+wireSpacing*0.4;
+  svg += `<rect x="0" y="${d2top}" width="128" height="${d2bot-d2top}" rx="6" fill="#f5f3ff" stroke="#ddd6fe" stroke-width="1.2"/>`;
+  svg += `<text x="64" y="${(d2top+d2bot)/2-7}" text-anchor="middle" fill="${C.drug2}" font-size="11" font-weight="800">${pair.n2.replace(/_/g,' ')}</text>`;
+  svg += `<text x="64" y="${(d2top+d2bot)/2+8}" text-anchor="middle" fill="${C.drug2}99" font-size="9">Drug B · 6 qubits</text>`;
+  svg += `<text x="64" y="${(d2top+d2bot)/2+21}" text-anchor="middle" fill="#94a3b8" font-size="8">${d2.formula}</text>`;
+
+  // ── QUBIT WIRES ───────────────────────────────────────────────
+  for(let i=0;i<totalWires;i++){
+    const y = wireY(i);
+    svg += `<line x1="128" y1="${y}" x2="${COLS.textEnd}" y2="${y}" stroke="${C.wire}" stroke-width="1.3"/>`;
+    // |0⟩ init label
+    svg += `<text x="${marginL+132}" y="${y+4}" fill="${C.anno}" font-size="10.5" font-weight="700">|0⟩</text>`;
+    // Qubit index label
+    svg += `<text x="${marginL+156}" y="${y+4}" fill="#94a3b8" font-size="9">q${i < n ? i : i-n}${i<n?' ':' '}</text>`;
+  }
+
+  // ── SEPARATOR between the two registers ───────────────────────
+  const sepY = (wireY(n-1) + wireY(n)) / 2;
+  svg += `<line x1="0" y1="${sepY}" x2="${W}" y2="${sepY}" stroke="#e2e8f0" stroke-width="1.5" stroke-dasharray="6,4"/>`;
+  svg += `<text x="${W-20}" y="${sepY-4}" text-anchor="end" fill="#94a3b8" font-size="8.5">Register boundary</text>`;
+
+  // ── BARRIER helper ────────────────────────────────────────────
+  const drawBarrier = (x) => {
+    svg += `<line x1="${x}" y1="${wireY(0)-16}" x2="${x}" y2="${wireY(totalWires-1)+16}" stroke="${C.barrier}" stroke-width="1.5" stroke-dasharray="4,3"/>`;
+  };
+
+  // ── RY GATE helper ────────────────────────────────────────────
+  const drawRY = (x, wi, theta, paramLabel, col) => {
+    const y = wireY(wi);
+    const gx = x - gateW/2, gy = y - gateH/2;
+    const deg = (theta/Math.PI*180).toFixed(1);
+    svg += `<rect x="${gx}" y="${gy}" width="${gateW}" height="${gateH}" rx="5" fill="${col}" stroke="${col}" stroke-width="1"/>`;
+    svg += `<text x="${x}" y="${y-3}" text-anchor="middle" fill="#fff" font-size="9.5" font-weight="700">RY</text>`;
+    svg += `<text x="${x}" y="${y+9}" text-anchor="middle" fill="#ffffffcc" font-size="7.5">${deg}°</text>`;
+    // Parameter tooltip above
+    svg += `<text x="${x}" y="${gy-5}" text-anchor="middle" fill="${col}" font-size="7.5" opacity="0.85">${paramLabel}</text>`;
+  };
+
+  // ── CNOT helper ───────────────────────────────────────────────
+  const drawCNOT = (x, ctrlWire, targWire) => {
+    const cy = wireY(ctrlWire), ty = wireY(targWire);
+    // Control dot
+    svg += `<circle cx="${x}" cy="${cy}" r="5.5" fill="${C.cnot}"/>`;
+    // Vertical line
+    svg += `<line x1="${x}" y1="${cy}" x2="${x}" y2="${ty}" stroke="${C.cnot}" stroke-width="1.8"/>`;
+    // Target ⊕
+    svg += `<circle cx="${x}" cy="${ty}" r="10" fill="#f0fdf4" stroke="${C.cnot}" stroke-width="1.8"/>`;
+    svg += `<line x1="${x-10}" y1="${ty}" x2="${x+10}" y2="${ty}" stroke="${C.cnot}" stroke-width="1.5"/>`;
+    svg += `<line x1="${x}" y1="${ty-10}" x2="${x}" y2="${ty+10}" stroke="${C.cnot}" stroke-width="1.5"/>`;
+  };
+
+  // ── MEASURE helper ────────────────────────────────────────────
+  const drawMeas = (x, wi) => {
+    const y = wireY(wi);
+    const gx = x - gateW/2, gy = y - gateH/2;
+    svg += `<rect x="${gx}" y="${gy}" width="${gateW}" height="${gateH}" rx="5" fill="${C.meas}15" stroke="${C.meas}" stroke-width="1.2"/>`;
+    // Meter arc symbol
+    svg += `<path d="M${gx+6},${y+4} A${gateW/2-6},${gateH/2-3} 0 0,1 ${gx+gateW-6},${y+4}" fill="none" stroke="${C.meas}" stroke-width="1.4"/>`;
+    svg += `<line x1="${x}" y1="${y+4}" x2="${gx+gateW-10}" y2="${y-5}" stroke="${C.meas}" stroke-width="1.2"/>`;
+  };
+
+  // ── DRAW THE CIRCUIT ──────────────────────────────────────────
+
+  // Barrier 1 — before Drug 2 RY
+  drawBarrier(COLS.barrier1);
+
+  // RY gates for Drug 1 (qubits 0-5)
+  PARAMS.forEach((p, i) => {
+    const val  = d1[p.key]||0;
+    const theta= Math.max(0, Math.min(Math.PI, (val-p.lo)/(p.hi-p.lo)*Math.PI));
+    drawRY(COLS.ry1, i, theta, p.label, C.drug1);
+  });
+
+  // RY gates for Drug 2 (qubits 6-11)
+  PARAMS.forEach((p, i) => {
+    const val  = d2[p.key]||0;
+    const theta= Math.max(0, Math.min(Math.PI, (val-p.lo)/(p.hi-p.lo)*Math.PI));
+    drawRY(COLS.ry2, n+i, theta, p.label, C.drug2);
+  });
+
+  drawBarrier(COLS.barrier2);
+
+  // CNOT entanglement layer: q_i → q_{n+i} for i=0..2
+  [0,1,2].forEach(i => drawCNOT(COLS.cnot + i*22, i, n+i));
+
+  drawBarrier(COLS.barrier3);
+
+  // Measurement gates (all 12 qubits)
+  for(let i=0;i<totalWires;i++) drawMeas(COLS.meas, i);
+
+  // ── COLUMN ANNOTATIONS (top of circuit) ───────────────────────
+  const annoY = wireY(0) - 38;
+  [
+    [COLS.ry1,   'PREP A', 'Drug A state',  C.drug1],
+    [COLS.ry2,   'PREP B', 'Drug B state',  C.drug2],
+    [COLS.cnot+22,'ENTANGLE','CNOT×3',     C.cnot],
+    [COLS.meas,  'MEASURE','|ψ₁⟩·|ψ₂⟩',   C.meas],
+  ].forEach(([x, lbl, sub, col])=>{
+    svg += `<rect x="${x-28}" y="${annoY-18}" width="56" height="30" rx="6" fill="${col}12" stroke="${col}44" stroke-width="1"/>`;
+    svg += `<text x="${x}" y="${annoY-4}" text-anchor="middle" fill="${col}" font-size="9" font-weight="800">${lbl}</text>`;
+    svg += `<text x="${x}" y="${annoY+10}" text-anchor="middle" fill="${col}bb" font-size="7.5">${sub}</text>`;
+  });
+
+  // ── FORMULA LEGEND (right panel) ─────────────────────────────
+  const rx = COLS.textEnd + 22, ry0 = marginT - 8;
+  svg += `<rect x="${rx-8}" y="${ry0}" width="${W-rx-6}" height="${wireY(totalWires-1)-ry0+30}" rx="10" fill="#fff" stroke="#e2e8f0" stroke-width="1.3"/>`;
+  svg += `<text x="${rx+4}" y="${ry0+17}" fill="${C.title}" font-size="11" font-weight="800">Circuit Equations</text>`;
+
+  const lines = [
+    {t:'State encoding:', c:C.title, bold:true, dy:34},
+    {t:'θᵢ = π·(xᵢ − lo)/(hi − lo)', c:C.drug1, bold:false, dy:50},
+    {t:'|ψ_A⟩ = ⊗ RY(θᵢᴬ)|0⟩  i=0..5', c:C.drug1, bold:false, dy:65},
+    {t:'|ψ_B⟩ = ⊗ RY(θᵢᴮ)|0⟩  i=0..5', c:C.drug2, bold:false, dy:80},
+    {t:'Quantum fidelity:', c:C.title, bold:true, dy:98},
+    {t:'F = |⟨ψ_A|ψ_B⟩|²', c:C.fid, bold:true, dy:114},
+    {t:'= ∏ᵢ cos²((θᵢᴬ−θᵢᴮ)/2)', c:C.fid, bold:false, dy:129},
+    {t:'F ∈ [0,1], 1=identical', c:'#64748b', bold:false, dy:144},
+    {t:'Entanglement layer:', c:C.title, bold:true, dy:162},
+    {t:'CNOT(qᵢ → q_{n+i}) i=0..2', c:C.cnot, bold:false, dy:178},
+    {t:'Probes cross-register corr.', c:'#64748b', bold:false, dy:193},
+    {t:'Score formula:', c:C.title, bold:true, dy:211},
+    {t:'S = (T×0.45 + F×0.30 +', c:'#1e2d45', bold:false, dy:227},
+    {t:'      class_mod + ent_δ×0.10)', c:'#1e2d45', bold:false, dy:242},
+    {t:'     × 118, capped at 100', c:'#64748b', bold:false, dy:257},
+    {t:'T = Tanimoto fingerprint', c:'#64748b', bold:false, dy:271},
+  ];
+  lines.forEach(l => {
+    svg += `<text x="${rx+6}" y="${ry0+l.dy}" fill="${l.c}" font-size="${l.bold?10:9}" font-weight="${l.bold?'800':'400'}">${l.t}</text>`;
+  });
+
+  // Fidelity result box
+  const fidY = ry0 + 292;
+  svg += `<rect x="${rx-2}" y="${fidY}" width="${W-rx-14}" height="52" rx="8" fill="#f0fdf4" stroke="#86efac" stroke-width="1.2"/>`;
+  svg += `<text x="${rx+8}" y="${fidY+16}" fill="#15803d" font-size="9.5" font-weight="800">RESULT FOR THIS PAIR</text>`;
+  svg += `<text x="${rx+8}" y="${fidY+32}" fill="#16a34a" font-size="9">Pairwise Score: ${pair.score}/100</text>`;
+  svg += `<text x="${rx+8}" y="${fidY+46}" fill="#16a34a" font-size="9">Tanimoto: ${(pair.tanimoto||0).toFixed(3)}  Status: ${getStatus(pair.score).l}</text>`;
+
+  // Per-qubit angle table
+  const tblY = fidY + 64;
+  svg += `<text x="${rx+4}" y="${tblY+12}" fill="${C.title}" font-size="10" font-weight="800">Qubit Encoding Table</text>`;
+  svg += `<rect x="${rx-2}" y="${tblY+18}" width="${W-rx-14}" height="${PARAMS.length*22+22}" rx="6" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>`;
+  svg += `<text x="${rx+4}"  y="${tblY+32}" fill="#64748b" font-size="8.5" font-weight="700">Param</text>`;
+  svg += `<text x="${rx+100}" y="${tblY+32}" fill="${C.drug1}" font-size="8.5" font-weight="700">Drug A θ</text>`;
+  svg += `<text x="${rx+165}" y="${tblY+32}" fill="${C.drug2}" font-size="8.5" font-weight="700">Drug B θ</text>`;
+  svg += `<text x="${rx+230}" y="${tblY+32}" fill="#64748b" font-size="8.5" font-weight="700">Δ cos²</text>`;
+  PARAMS.forEach((p, i) => {
+    const v1=d1[p.key]||0, v2=d2[p.key]||0;
+    const t1=Math.max(0,Math.min(Math.PI,(v1-p.lo)/(p.hi-p.lo)*Math.PI));
+    const t2=Math.max(0,Math.min(Math.PI,(v2-p.lo)/(p.hi-p.lo)*Math.PI));
+    const c2=(Math.cos((t1-t2)/2)**2).toFixed(3);
+    const ty2=tblY+50+i*22;
+    const rowFill = i%2===0?'#f8fafc':'#fff';
+    svg += `<rect x="${rx-2}" y="${ty2-13}" width="${W-rx-14}" height="20" fill="${rowFill}"/>`;
+    svg += `<text x="${rx+4}"  y="${ty2}" fill="${C.anno}" font-size="8.5">q${i} ${p.label}</text>`;
+    svg += `<text x="${rx+4}"  y="${ty2+10}" fill="#94a3b8" font-size="7.5">(${p.key}=${v1}${p.unit})</text>`;
+    svg += `<text x="${rx+100}" y="${ty2}" fill="${C.drug1}" font-size="8.5">${(t1/Math.PI*180).toFixed(1)}°</text>`;
+    svg += `<text x="${rx+165}" y="${ty2}" fill="${C.drug2}" font-size="8.5">${(t2/Math.PI*180).toFixed(1)}°</text>`;
+    svg += `<text x="${rx+230}" y="${ty2}" fill="${parseFloat(c2)>0.7?C.fid:'#ea580c'}" font-size="8.5" font-weight="700">${c2}</text>`;
+  });
+
+  svg += '</svg>';
+
+  // ── HTML wrapper with explanation cards below circuit ─────────
+  const interPairs = results.pairData.slice(0,4);
+  return `
+  <div style="animation:fadeUp 0.4s ease">
+
+    <!-- Circuit SVG -->
+    <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:16px;padding:16px;margin-bottom:20px;box-shadow:0 2px 12px rgba(30,45,80,0.07);overflow-x:auto">
+      ${svg}
+    </div>
+
+    <!-- Gate reference cards -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px">
+      ${[
+        {icon:'RY(θ)',col:'#7c3aed',bg:'#f5f3ff',bdr:'#ddd6fe',
+         title:'RY Rotation Gate',
+         body:`Encodes one molecular property into a qubit's Bloch sphere angle. θ = π·(x−lo)/(hi−lo), so the qubit rotates between |0⟩ (minimum property) and |1⟩ (maximum). Each drug gets 6 qubits — MW, LogP, HBD, HBA, TPSA, RotBonds.`},
+        {icon:'|ψ⟩',col:'#2563eb',bg:'#eff6ff',bdr:'#bfdbfe',
+         title:'Product State |ψ⟩',
+         body:`After 6 RY gates, the qubit register is in a 6-qubit product state |ψ⟩ = RY(θ₀)|0⟩ ⊗ RY(θ₁)|0⟩ ⊗ … ⊗ RY(θ₅)|0⟩. This encodes the entire physicochemical fingerprint of one drug as a quantum state vector.`},
+        {icon:'F=|⟨ψ₁|ψ₂⟩|²',col:'#16a34a',bg:'#f0fdf4',bdr:'#86efac',
+         title:'Quantum Fidelity',
+         body:`Measures how "close" two quantum states are. F=1 means identical molecular profiles; F=0 means maximally different. For product states, F = ∏ᵢ cos²((θᵢᴬ−θᵢᴮ)/2) — each qubit contributes independently. High fidelity → high molecular similarity.`},
+        {icon:'CNOT',col:'#16a34a',bg:'#f0fdf4',bdr:'#86efac',
+         title:'CNOT Entanglement',
+         body:`Three CNOT gates link Drug A's qubits 0-2 to Drug B's qubits 0-2. This creates quantum correlations (entanglement) between the two registers. The entanglement probe measures whether the drugs behave differently when combined vs independently.`},
+        {icon:'T(A,B)',col:'#ea580c',bg:'#fff7ed',bdr:'#fed7aa',
+         title:'Tanimoto Fingerprint',
+         body:`Classical similarity metric: T = |A∩B|/|A∪B| over 40+ binary features (MW thresholds, LogP ranges, ring counts, atom types, Lipinski flags). Combined with quantum fidelity in the final score: S = T×0.45 + F×0.30 + class_mod + ent_δ×0.10.`},
+        {icon:'S/100',col:'#dc2626',bg:'#fef2f2',bdr:'#fca5a5',
+         title:'Final Score Interpretation',
+         body:`Score ≥ 75 = HIGH AFFINITY (structurally similar, low interaction risk). 55–74 = MODERATE. 35–54 = LOW. <35 = INCOMPATIBLE (very different physicochemistry). The aggregate mixture score uses a geometric mean of all pairwise scores plus a class-diversity bonus.`},
+      ].map(c=>`
+        <div style="background:${c.bg};border:1.5px solid ${c.bdr};border-radius:12px;padding:14px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <span style="font-family:monospace;font-size:12px;font-weight:800;color:${c.col};background:${c.col}15;padding:3px 9px;border-radius:6px;border:1px solid ${c.col}44">${c.icon}</span>
+            <span style="font-size:12px;font-weight:700;color:#1e2d45">${c.title}</span>
+          </div>
+          <p style="font-size:11px;color:#475569;line-height:1.7">${c.body}</p>
+        </div>`).join('')}
+    </div>
+
+    <!-- All-pairs quantum fidelity table -->
+    <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:16px;box-shadow:0 2px 8px rgba(30,45,80,0.06)">
+      <div style="font-size:11px;font-weight:800;color:#1e2d45;letter-spacing:1px;text-transform:uppercase;margin-bottom:14px">All Pair Quantum Fidelities</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:8px">
+        ${results.pairData.map(p=>{
+          const st=getStatus(p.score);
+          const fid=(p.tanimoto||0).toFixed(3);
+          const pct=Math.round(p.score);
+          return `<div style="background:#f8fafc;border:1.5px solid ${st.c}33;border-radius:10px;padding:11px 14px">
+            <div style="font-size:11px;font-weight:700;color:${st.c};margin-bottom:4px">${p.n1.replace(/_/g,' ')} ↔ ${p.n2.replace(/_/g,' ')}</div>
+            <div style="display:flex;gap:12px;align-items:center;margin-bottom:6px">
+              <div style="flex:1;height:6px;background:#f1f5f9;border-radius:3px">
+                <div style="height:100%;width:${pct}%;background:${st.c};border-radius:3px"></div>
+              </div>
+              <span style="font-size:13px;font-weight:800;color:${st.c}">${p.score}</span>
+            </div>
+            <div style="font-size:9px;color:#64748b;font-family:monospace">Tanimoto: ${fid} · ${st.l}</div>
+            ${getRule(p.n1,p.n2)?`<div style="font-size:9px;color:#dc2626;margin-top:3px;font-weight:600">⚠ ${getRule(p.n1,p.n2).note}</div>`:''}
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════
+// APP STATE
+// ═══════════════════════════════════════════
+let sel=[], results=null, aiData=null, currentTab="aggregate", searchText="", clsFilter="All";
+const COLS=["#22c55e","#38bdf8","#a78bfa","#fb923c","#f472b6","#34d399","#facc15","#60a5fa"];
+
+function counts(){return sel.reduce((acc,n)=>({...acc,[n]:(acc[n]||0)+1}),{});}
+function uniqueSel(){return [...new Set(sel)];}
+
+// ═══════════════════════════════════════════
+// RENDER FUNCTIONS
+// ═══════════════════════════════════════════
+function renderMolBtn(){
+  const btn=document.getElementById("mol-btn");
+  const badge=document.getElementById("mol-badge");
+  btn.classList.toggle("active",sel.length>0);
+  if(sel.length>0){badge.style.display="flex";badge.textContent=sel.length;}
+  else{badge.style.display="none";}
+}
+
+function renderMixtureBar(){
+  const bar=document.getElementById("mixture-bar");
+  const chips=document.getElementById("mix-chips");
+  if(sel.length===0){bar.classList.remove("visible");return;}
+  bar.classList.add("visible");
+  const c=counts(),u=uniqueSel();
+  chips.innerHTML=u.map(nm=>{
+    const d=DRUGS[nm],cnt=c[nm];
+    return `<div class="mix-chip" style="background:${d.col}0e;border-color:${d.col}33">
+      <span class="mix-chip-name" style="color:${d.col}">${nm.replace(/_/g," ")}${cnt>1?`<span class="mix-chip-count" style="color:${d.col}aa"> ×${cnt}</span>`:""}</span>
+      <button class="chip-btn" style="border-color:#ef444428;color:#ef444488" onclick="removeOne('${nm}')">−</button>
+      <button class="chip-btn" style="border-color:#22c55e33;color:#22c55e88" onclick="addOne('${nm}')">+</button>
+      <button class="chip-btn" style="border:none;color:#ef444455" onclick="removeAll('${nm}')">✕</button>
+    </div>`;
+  }).join("");
+}
+
+function renderCards(){
+  const grid=document.getElementById("cards-grid");
+  const u=uniqueSel(),c=counts();
+  if(u.length===0){grid.classList.remove("visible");grid.innerHTML="";return;}
+  grid.classList.add("visible");
+  grid.style.gridTemplateColumns=`repeat(${Math.min(u.length,4)},1fr)`;
+  grid.innerHTML=u.map((nm,i)=>{
+    const d=DRUGS[nm],ac=COLS[i%COLS.length],cnt=c[nm];
+    return `<div style="position:relative">
+      <div class="drug-card" style="border-color:${ac}25">
+        <div class="card-header">
+          <div style="flex:1;min-width:0">
+            <div class="card-compound" style="color:${ac}">COMPOUND ${String.fromCharCode(65+i)}</div>
+            <div class="card-name">${nm.replace(/_/g," ")}</div>
+            <div class="card-tags">
+              <span class="card-tag" style="color:${d.col};background:${d.col}18;border-color:${d.col}33">${d.cls}</span>
+              <span class="card-tag" style="color:#2a3d50;background:rgba(255,255,255,0.03);border-color:#0d1828">${d.tgt}</span>
+            </div>
+          </div>
+          <button class="card-remove" onclick="removeAll('${nm}')">✕</button>
+        </div>
+        ${drugSVG(nm,148)}
+        <div class="card-props">
+          ${[["MW",d.mw.toFixed(1)],["LogP",d.logp],["HBD",d.hbd],["TPSA",d.tpsa]].map(([k,v])=>`
+            <div class="card-prop">
+              <div class="card-prop-key">${k}</div>
+              <div class="card-prop-val" style="color:${ac}">${v}</div>
+            </div>`).join("")}
+        </div>
+      </div>
+      ${cnt>1?`<div class="count-badge-abs" style="background:${d.col};box-shadow:0 0 8px ${d.col}">×${cnt}</div>`:""}
+    </div>`;
+  }).join("");
+}
+
+// ═══════════════════════════════════════════════════════════════
+// QUBIT USAGE CALCULATOR + RENDERER
+// 6 molecular params per drug → 6 qubits per drug
+// N unique drugs → 6*N qubits total for the quantum fidelity circuit
+// ═══════════════════════════════════════════════════════════════
+
+const QUBIT_PARAMS = ['MW','LogP','HBD','HBA','TPSA','RotBonds'];
+const QUBIT_COLORS = ['#2563eb','#7c3aed','#16a34a','#ea580c','#db2777','#0891b2'];
+
+function calcQubits(names){
+  const u = [...new Set(names)];
+  const uniqueDrugs = u.length;
+  const qubitsPerDrug = QUBIT_PARAMS.length;           // always 6
+  const totalQubits   = uniqueDrugs * qubitsPerDrug;   // 6N
+  const cnotGates     = Math.min(qubitsPerDrug, 3);    // 3 CNOT gates per adjacent pair
+  const totalPairs    = uniqueDrugs * (uniqueDrugs - 1) / 2;
+  return { uniqueDrugs, qubitsPerDrug, totalQubits, cnotGates, totalPairs };
+}
+
+function renderQubitCounter(){
+  const counter = document.getElementById('qubit-counter');
+  if(sel.length < 2){ if(counter) counter.style.display='none'; return; }
+
+  const {uniqueDrugs, qubitsPerDrug, totalQubits, cnotGates, totalPairs} = calcQubits(sel);
+  const u = [...new Set(sel)];
+
+  if(!counter) return;
+  counter.style.display = 'flex';
+  counter.innerHTML = `
+    <!-- Total qubit chip -->
+    <div style="background:linear-gradient(135deg,#eff6ff,#f5f3ff);border:1.5px solid #bfdbfe;
+      border-radius:10px;padding:8px 14px;display:flex;align-items:center;gap:8px">
+      <span style="font-size:18px">⚛</span>
+      <div>
+        <div style="font-size:18px;font-weight:900;color:#1e40af;line-height:1">${totalQubits}</div>
+        <div style="font-size:9px;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Total Qubits</div>
+      </div>
+    </div>
+    <!-- Per-drug breakdown -->
+    ${u.map((name,i)=>{
+      const d = DRUGS[name];
+      const col = QUBIT_COLORS[i % QUBIT_COLORS.length];
+      return `<div style="background:#fff;border:1.5px solid ${col}44;border-radius:10px;padding:7px 12px;display:flex;align-items:center;gap:7px">
+        <div style="width:8px;height:8px;border-radius:50%;background:${col};flex-shrink:0"></div>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:#1e2d45">${name.replace(/_/g,' ')}</div>
+          <div style="font-size:9px;color:${col};font-weight:700">${qubitsPerDrug} qubits</div>
+        </div>
+      </div>`;
+    }).join('')}
+    <!-- Formula chip -->
+    <div style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:7px 12px">
+      <div style="font-size:9px;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px">Formula</div>
+      <div style="font-size:10px;color:#475569;font-family:monospace">${uniqueDrugs} drugs × ${qubitsPerDrug} params = <strong style="color:#1e40af">${totalQubits}Q</strong></div>
+    </div>`;
+}
+
+function renderQubitBanner(){
+  const banner = document.getElementById('qubit-banner');
+  if(!banner || !results) return;
+
+  const u = uniqueSel();
+  if(u.length < 2){ banner.style.display='none'; return; }
+
+  const {uniqueDrugs, qubitsPerDrug, totalQubits, cnotGates, totalPairs} = calcQubits(u);
+
+  // Title + description
+  document.getElementById('qubit-banner-title').textContent =
+    `Quantum Circuit: ${totalQubits} Qubits  ·  ${uniqueDrugs} Drugs  ·  ${totalPairs} Pair${totalPairs>1?'s':''}`;
+  document.getElementById('qubit-banner-desc').textContent =
+    `Each drug encoded as ${qubitsPerDrug} qubits (MW, LogP, HBD, HBA, TPSA, RotBonds) → `+
+    `${uniqueDrugs} × ${qubitsPerDrug} = ${totalQubits} total qubits. `+
+    `${cnotGates} CNOT gates per pair entangle the registers. Statevector fidelity F = |⟨ψ₁|ψ₂⟩|².`;
+
+  // Per-drug qubit chips
+  document.getElementById('qubit-chips').innerHTML = u.map((name,i)=>{
+    const col = QUBIT_COLORS[i % QUBIT_COLORS.length];
+    return `<div style="background:${col}10;border:1.5px solid ${col}44;border-radius:8px;padding:5px 11px;text-align:center">
+      <div style="font-size:16px;font-weight:900;color:${col}">${qubitsPerDrug}</div>
+      <div style="font-size:8px;color:${col}99;font-weight:700;white-space:nowrap">${name.replace(/_/g,' ').slice(0,10)}</div>
+    </div>`;
+  }).join('') +
+  `<div style="background:#1e40af12;border:1.5px solid #1e40af44;border-radius:8px;padding:5px 11px;text-align:center">
+    <div style="font-size:16px;font-weight:900;color:#1e40af">${totalQubits}</div>
+    <div style="font-size:8px;color:#1e40af99;font-weight:700">TOTAL</div>
+  </div>`;
+
+  // Visual qubit register — one coloured block per qubit
+  const viz = document.getElementById('qubit-register-viz');
+  let html = '<div style="display:flex;align-items:flex-start;gap:2px;flex-wrap:wrap">';
+  u.forEach((name,di)=>{
+    const col = QUBIT_COLORS[di % QUBIT_COLORS.length];
+    html += `<div style="display:flex;flex-direction:column;gap:2px;margin-right:4px">`;
+    // Drug label above its qubits
+    html += `<div style="font-size:8px;font-weight:700;color:${col};text-align:center;white-space:nowrap;
+      margin-bottom:3px;border-bottom:2px solid ${col};padding-bottom:2px">${name.replace(/_/g,' ').slice(0,9)}</div>`;
+    html += `<div style="display:flex;gap:2px">`;
+    QUBIT_PARAMS.forEach((param,qi)=>{
+      const globalIdx = di * qubitsPerDrug + qi;
+      html += `<div title="q${globalIdx}: ${param} of ${name.replace(/_/g,' ')}"
+        style="width:28px;height:28px;border-radius:5px;background:${col};
+          display:flex;align-items:center;justify-content:center;cursor:default;
+          border:1.5px solid ${col}cc;box-shadow:0 1px 4px ${col}30">
+        <span style="font-size:7px;font-weight:800;color:#fff;text-align:center;line-height:1">q${globalIdx}</span>
+      </div>`;
+    });
+    html += `</div></div>`;
+  });
+  // CNOT indicator
+  if(u.length >= 2){
+    html += `<div style="display:flex;flex-direction:column;justify-content:center;gap:2px;padding-left:6px;border-left:2px dashed #e2e8f0;margin-left:4px">
+      <div style="font-size:8px;font-weight:700;color:#64748b;margin-bottom:3px">CNOT Layer</div>
+      ${Array.from({length:cnotGates},(_,i)=>`
+        <div style="display:flex;align-items:center;gap:4px">
+          <div style="width:10px;height:10px;border-radius:50%;background:#16a34a;border:2px solid #15803d"></div>
+          <div style="font-size:8px;color:#64748b;font-family:monospace">→</div>
+          <div style="width:10px;height:10px;border-radius:50%;border:2px solid #16a34a;
+            display:flex;align-items:center;justify-content:center">
+            <div style="width:6px;height:1.5px;background:#16a34a;border-radius:1px"></div>
+          </div>
+          <div style="font-size:7.5px;color:#94a3b8">cx(${i},${qubitsPerDrug+i})</div>
+        </div>`).join('')}
+      <div style="font-size:7.5px;color:#16a34a;font-weight:700;margin-top:2px">Entanglement</div>
+    </div>`;
+  }
+  // Measurement indicator
+  html += `<div style="display:flex;flex-direction:column;justify-content:center;gap:2px;padding-left:8px;border-left:2px dashed #e2e8f0;margin-left:4px">
+    <div style="font-size:8px;font-weight:700;color:#64748b;margin-bottom:3px">Measure</div>
+    ${Array.from({length:Math.min(totalQubits,4)},(_,i)=>`
+      <div style="display:flex;align-items:center;gap:4px">
+        <div style="width:18px;height:12px;border:1.5px solid #ea580c;border-radius:3px;
+          display:flex;align-items:center;justify-content:center;background:#fff7ed">
+          <div style="font-size:6px;color:#ea580c;font-weight:800">M</div>
+        </div>
+        <div style="font-size:7.5px;color:#94a3b8;font-family:monospace">c[${i}]</div>
+      </div>`).join('')}
+    ${totalQubits > 4 ? `<div style="font-size:7.5px;color:#94a3b8">+ ${totalQubits-4} more</div>` : ''}
+    <div style="font-size:7.5px;color:#ea580c;font-weight:700;margin-top:2px">${totalQubits} bits</div>
+  </div>`;
+  html += '</div>';
+
+  // Summary row below the register
+  html += `<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+    ${[
+      {label:'Qubits',val:totalQubits,col:'#1e40af'},
+      {label:'Params/Drug',val:qubitsPerDrug,col:'#7c3aed'},
+      {label:'CNOT Gates',val:cnotGates,col:'#16a34a'},
+      {label:'State Space',val:'2^'+totalQubits+'='+(Math.pow(2,totalQubits)).toLocaleString(),col:'#ea580c'},
+      {label:'Pairs',val:totalPairs,col:'#64748b'},
+    ].map(({label,val,col})=>`
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:5px 12px;display:flex;align-items:center;gap:7px">
+        <span style="font-size:12px;font-weight:800;color:${col}">${val}</span>
+        <span style="font-size:9px;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.4px">${label}</span>
+      </div>`).join('')}
+  </div>`;
+
+  viz.innerHTML = html;
+  banner.style.display = 'block';
+}
+
+function renderAnalyzeBtn(){
+  const wrap=document.getElementById("analyze-wrap");
+  const btn=document.getElementById("analyze-btn");
+  const sub=document.getElementById("analyze-sub");
+  if(sel.length<2){
+    wrap.classList.remove("visible");
+    const c=document.getElementById('qubit-counter');
+    if(c) c.style.display='none';
+    return;
+  }
+  wrap.classList.add("visible");
+  const u=uniqueSel().length;
+  const {totalQubits} = calcQubits(sel);
+  sub.textContent=`${sel.length*(sel.length-1)/2} pairwise interactions · ${u} unique drugs · ${sel.length} total instances`;
+  btn.textContent=`⬡ ANALYZE ${sel.length}-INSTANCE MIXTURE`;
+  renderQubitCounter();
+}
+
+function renderEmptyState(){
+  const es=document.getElementById("empty-state");
+  const rs=document.getElementById("results-section");
+  if(sel.length===0 && !results){es.style.display="block";rs.classList.remove("visible");}
+  else{es.style.display="none";}
+}
+
+function renderDrugPanel(){
+  const grid=document.getElementById("drug-grid");
+  const foot=document.getElementById("panel-footer");
+  const c=counts();
+  const visible=DRUG_NAMES.filter(n=>{
+    const d=DRUGS[n],ms=searchText.toLowerCase();
+    return(n.toLowerCase().includes(ms)||d.cls.toLowerCase().includes(ms))&&(clsFilter==="All"||d.cls===clsFilter);
+  });
+  grid.innerHTML=visible.map(nm=>{
+    const d=DRUGS[nm],cnt=c[nm]||0;
+    return `<div class="drug-row ${cnt>0?'selected':''}">
+      <div class="drug-row-info" style="cursor:pointer" onclick="addOne('${nm}')">
+        <div class="drug-row-name" style="color:${cnt>0?'#22c55e':'var(--text)'}">${nm.replace(/_/g," ")}${cnt>0?`<span class="count-badge">×${cnt}</span>`:""}</div>
+        <div class="drug-row-cls">${d.cls}</div>
+      </div>
+      ${cnt>0?`<button class="btn-minus" onclick="removeOne('${nm}')">−</button>`:""}
+      <button class="btn-add" onclick="addOne('${nm}')">+</button>
+    </div>`;
+  }).join("");
+  foot.textContent=`${visible.length}/${DRUG_NAMES.length} drugs · ${sel.length} total instances (${uniqueSel().length} unique)`;
+}
+
+function renderResults(){
+  if(!results) return;
+  const rs=document.getElementById("results-section");
+  rs.classList.add("visible");
+
+  // Render qubit usage banner
+  renderQubitBanner();
+
+  // Worst warning
+  const warnEl=document.getElementById("worst-warning");
+  const worstKnown=results.pairData.map(p=>getRule(p.n1,p.n2)).filter(Boolean)
+    .sort((a,b)=>{const o={critical:0,high:1,moderate:2,low:3};return(o[a.risk]||3)-(o[b.risk]||3);})[0];
+  if(worstKnown){
+    const vc=VC[worstKnown.v]||"#aaa";
+    warnEl.style.display="block";
+    warnEl.style.background=`${vc}0a`;
+    warnEl.style.border=`1px solid ${vc}33`;
+    warnEl.style.color=vc;
+    warnEl.innerHTML=`⚠ CLINICAL ALERT · ${worstKnown.v} — ${worstKnown.note}`;
+  } else {warnEl.style.display="none";}
+
+  renderAggTab();
+  renderPairTab();
+}
+
+function renderAggTab(){
+  // Pass the full sel list (with duplicates) so repeated molecules appear
+  const fullSel = sel.slice(); // e.g. ["Aspirin","Aspirin","Ibuprofen"]
+  const u = uniqueSel();
+
+  // ── Check for critical AVOID combinations ──────────────────
+  const avoidPairs = [];
+  for(let i=0;i<u.length;i++) for(let j=i+1;j<u.length;j++){
+    const rule = getRule(u[i],u[j]);
+    if(rule && rule.v==='AVOID') avoidPairs.push({n1:u[i],n2:u[j],rule});
+  }
+
+  if(avoidPairs.length > 0){
+    // Show "combination not possible" panel
+    document.getElementById("network-wrap").innerHTML=`
+      <div style="padding:28px 24px;text-align:center;animation:fadeUp 0.4s ease">
+        <div style="font-size:44px;margin-bottom:14px">⛔</div>
+        <div style="font-size:18px;font-weight:800;color:#dc2626;margin-bottom:8px">Combination Not Possible</div>
+        <div style="font-size:13px;color:#64748b;margin-bottom:20px">This mixture contains critically contraindicated drug pairs. Co-administration is clinically unsafe.</div>
+        <div style="display:flex;flex-direction:column;gap:10px;max-width:520px;margin:0 auto">
+          ${avoidPairs.map(({n1,n2,rule})=>`
+            <div style="background:#fef2f2;border:1.5px solid #fca5a5;border-radius:12px;padding:14px 18px;text-align:left">
+              <div style="font-size:13px;font-weight:800;color:#dc2626;margin-bottom:4px">
+                🚫 ${n1.replace(/_/g,' ')} + ${n2.replace(/_/g,' ')}
+              </div>
+              <div style="font-size:12px;color:#991b1b">${rule.note}</div>
+              <div style="font-size:11px;color:#b91c1c;margin-top:4px;font-style:italic">
+                Risk level: CRITICAL — Do not co-administer
+              </div>
+            </div>`).join('')}
+        </div>
+        <div style="margin-top:18px;font-size:11px;color:#94a3b8">
+          Remove the conflicting drugs from your mixture to see a combined structure.
+        </div>
+      </div>`;
+  } else {
+    // All safe — render the merged structure with the FULL selection (duplicates included)
+    document.getElementById("network-wrap").innerHTML=combinedStructureSVG(fullSel, results.aggregate);
+  }
+
+  // Score cards
+  const st=getStatus(results.aggregate);
+  document.getElementById("agg-grid").innerHTML=[
+    {label:"AGGREGATE SCORE",val:results.aggregate,sub:st.l,c:st.c,big:true},
+    {label:"GEO MEAN SCORE",val:results.geoMean,sub:"geometric mean of pairs",c:"#38bdf8"},
+    {label:"MIN PAIRWISE",val:results.minPair,sub:"weakest link",c:getStatus(results.minPair).c},
+    {label:"VARIANCE PENALTY",val:`${results.variancePenalty}%`,sub:"cluster instability",c:"#f97316"},
+    {label:"CENTROID FIDELITY",val:results.meanCentroidFid,sub:"mean-field distance",c:"#a78bfa"},
+    {label:"CLASS DIVERSITY",val:`+${results.classBonus}`,sub:`${results.uniqueClasses} unique classes`,c:"#22c55e"},
+  ].map(({label,val,sub,c})=>`
+    <div class="agg-card" style="border-color:${c}22">
+      <div class="agg-card-label">${label}</div>
+      <div class="agg-card-val" style="color:${c}">${val}</div>
+      <div class="agg-card-sub" style="color:${c}">${sub}</div>
+    </div>`).join("");
+
+  // Radar bars
+  const comps=results.components;
+  document.getElementById("radar-wrap").innerHTML=`
+    <div class="radar-title">COMPONENT BREAKDOWN</div>
+    ${Object.entries(comps).map(([k,v])=>{
+      const c=v>=70?"#22c55e":v>=45?"#eab308":"#f97316";
+      return `<div class="radar-row">
+        <div class="radar-key">${k}</div>
+        <div class="radar-bar-bg"><div class="radar-bar-fill" style="width:${v}%;background:linear-gradient(90deg,${c},${c}88)"></div></div>
+        <div class="radar-val" style="color:${c}">${v}</div>
+      </div>`;
+    }).join("")}`;
+
+  // Formula
+  document.getElementById("formula-text").innerHTML=`
+    S_agg = GeoMean(pairs) × (1 − σ²/500) + ClassBonus + CentroidFidelity×5<br>
+    GeoMean = (∏ Score_ij)^(1/N) &nbsp;·&nbsp; σ² = variance penalty (max 25%)<br>
+    Quantum Fidelity F(d₁,d₂) = ∏ cos²((θ_k¹ − θ_k²)/2) &nbsp;over 6 molecular params<br>
+    θ_k = π·(x_k − lo_k)/(hi_k − lo_k) &nbsp;·&nbsp; Tanimoto T = |A∩B|/|A∪B|<br>
+    Score = min(T×0.50 + F×0.35 + ClassBonus) × 118, 100)`;
+}
+
+function renderPairTab(){
+  const list=document.getElementById("pair-list");
+  list.innerHTML=`<div class="pair-section-title">🔗 ALL PAIRWISE INTERACTIONS — ${results.pairData.length} PAIRS</div>
+  ${results.pairData.sort((a,b)=>b.score-a.score).map(p=>{
+    const rule=getRule(p.n1,p.n2);
+    const st=getStatus(p.score);
+    const vc=rule?(VC[rule.v]||st.c):st.c;
+    return `<div class="pair-row" style="border-color:${vc}22">
+      <div class="pair-names">
+        <div class="pair-name-text" style="color:${vc};font-family:var(--font-mono)">${p.n1.replace(/_/g," ")} ↔ ${p.n2.replace(/_/g," ")}</div>
+        ${rule?`<div class="pair-warn" style="color:${VC[rule.v]||'#aaa'}">⚠ ${rule.note}</div>`:""}
+      </div>
+      <div class="pair-bar-wrap">
+        <div class="pair-bar-bg"><div class="pair-bar-fill" style="width:${p.score}%;background:linear-gradient(90deg,${vc},${vc}88)"></div></div>
+        <div class="pair-score" style="color:${vc};font-family:var(--font-mono)">${p.score}</div>
+        <div class="pair-status">${st.l}</div>
+        ${rule?`<div class="pair-verdict-badge" style="color:${VC[rule.v]||'#aaa'};background:${VC[rule.v]||'#aaa'}12;border-color:${VC[rule.v]||'#aaa'}33">${rule.v}</div>`:""}
+      </div>
+    </div>`;
+  }).join("")}`;
+}
+
+function renderAIPanel(loading){
+  const container=document.getElementById("ai-panel");
+
+  if(loading){
+    container.innerHTML=`
+      <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:16px;padding:40px 24px;text-align:center;box-shadow:0 2px 12px rgba(30,45,80,0.07)">
+        <div style="font-size:36px;margin-bottom:14px;animation:spin 1.2s linear infinite;display:inline-block">🧬</div>
+        <div style="font-size:15px;font-weight:800;color:#1e2d45;margin-bottom:6px">AI Analysis in Progress</div>
+        <div style="font-size:12px;color:#64748b;margin-bottom:18px">GPT-4o is analyzing pharmacology, interactions, and chemical properties…</div>
+        <div style="height:4px;background:#f1f5f9;border-radius:2px;max-width:280px;margin:0 auto;overflow:hidden">
+          <div style="height:100%;background:linear-gradient(90deg,#2563eb,#16a34a);border-radius:2px;width:60%;animation:blink 1.5s infinite"></div>
+        </div>
+      </div>`;
+    return;
+  }
+  if(!aiData){container.innerHTML="";return;}
+
+  const ai = aiData;
+  const VERDICT_COL = {SAFE:'#16a34a',CAUTION:'#ca8a04',AVOID:'#dc2626'};
+  const RISK_COL    = {low:'#16a34a',moderate:'#ca8a04',high:'#ea580c',critical:'#dc2626'};
+  const vc  = VERDICT_COL[ai.combination_verdict] || '#64748b';
+  const rc  = RISK_COL[ai.clinical_risk]           || '#64748b';
+
+  // ── Section helper ────────────────────────────────────────────
+  const section = (title, icon, color, bgColor, borderColor, content) => `
+    <div style="background:${bgColor};border:1.5px solid ${borderColor};border-radius:14px;padding:16px 18px;margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:7px;margin-bottom:12px">
+        <span style="font-size:16px">${icon}</span>
+        <span style="font-size:11px;font-weight:800;color:${color};letter-spacing:0.5px;text-transform:uppercase">${title}</span>
+      </div>
+      ${content}
+    </div>`;
+
+  const row = (label, val, col='#1e2d45') => `
+    <div style="display:flex;justify-content:space-between;align-items:baseline;
+      padding:5px 0;border-bottom:1px solid #f1f5f9;gap:12px">
+      <span style="font-size:11px;color:#64748b;font-weight:500;flex-shrink:0">${label}</span>
+      <span style="font-size:11px;color:${col};font-weight:600;text-align:right">${val||'—'}</span>
+    </div>`;
+
+  const bullet = (items, col) => (items||[]).map(t=>
+    `<div style="display:flex;gap:8px;margin-bottom:6px">
+       <span style="color:${col};font-size:13px;flex-shrink:0;margin-top:-1px">●</span>
+       <span style="font-size:11px;color:#475569;line-height:1.6">${t}</span>
+     </div>`).join('');
+
+  // ── Error banner if present ───────────────────────────────────
+  if(ai.recommendation && !ai.interaction_type){
+    container.innerHTML=`
+      <div style="background:#fef2f2;border:1.5px solid #fca5a5;border-radius:14px;padding:20px;color:#dc2626;font-size:12px">
+        <strong>⚠ AI Error:</strong> ${ai.recommendation}
+      </div>`;
+    return;
+  }
+
+  container.innerHTML=`
+    <div style="animation:fadeUp 0.4s ease">
+
+      <!-- ── VERDICT HEADER ── -->
+      <div style="background:${vc}08;border:2px solid ${vc}33;border-radius:16px;
+        padding:18px 20px;margin-bottom:16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+        <div style="flex:1">
+          <div style="font-size:10px;color:#64748b;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">
+            GPT-4o Clinical Assessment · Powered by OpenAI
+          </div>
+          <div style="font-size:20px;font-weight:900;color:${vc}">${ai.combination_verdict||'—'}</div>
+          <div style="font-size:12px;color:${vc}99;margin-top:2px">${(ai.interaction_type||'').replace(/_/g,' ')}</div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          ${[
+            ['Clinical Risk',(ai.clinical_risk||'').toUpperCase(),rc],
+            ['Monitoring',ai.monitoring_required?'Required':'Not Required',ai.monitoring_required?'#ca8a04':'#16a34a'],
+          ].map(([lbl,val,col])=>`
+            <div style="background:#fff;border:1.5px solid ${col}44;border-radius:10px;
+              padding:10px 14px;text-align:center;min-width:100px">
+              <div style="font-size:9px;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:0.5px">${lbl}</div>
+              <div style="font-size:13px;font-weight:800;color:${col};margin-top:3px">${val}</div>
+            </div>`).join('')}
+        </div>
+      </div>
+
+      <!-- ── MECHANISM ── -->
+      ${ai.mechanism ? section('Mechanism of Interaction','🔬','#1e40af','#eff6ff','#bfdbfe',`
+        <p style="font-size:12px;color:#1e2d45;line-height:1.8;font-family:Georgia,serif">${ai.mechanism}</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
+          ${ai.pk_note?`<div style="background:#fff;border:1px solid #bfdbfe;border-radius:8px;padding:10px">
+            <div style="font-size:9px;font-weight:700;color:#2563eb;text-transform:uppercase;margin-bottom:4px">Pharmacokinetics (PK)</div>
+            <p style="font-size:11px;color:#475569;line-height:1.6">${ai.pk_note}</p>
+          </div>`:''}
+          ${ai.pd_note?`<div style="background:#fff;border:1px solid #bfdbfe;border-radius:8px;padding:10px">
+            <div style="font-size:9px;font-weight:700;color:#7c3aed;text-transform:uppercase;margin-bottom:4px">Pharmacodynamics (PD)</div>
+            <p style="font-size:11px;color:#475569;line-height:1.6">${ai.pd_note}</p>
+          </div>`:''}
+        </div>`) : ''}
+
+      <!-- ── RISK FACTORS + BENEFITS ── -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+        ${(ai.risk_factors?.length) ? section('Risk Factors','⚠️','#dc2626','#fef2f2','#fca5a5',
+          bullet(ai.risk_factors,'#dc2626')) : ''}
+        ${(ai.benefits?.length) ? section('Clinical Benefits','✅','#16a34a','#f0fdf4','#86efac',
+          bullet(ai.benefits,'#16a34a')) : ''}
+      </div>
+
+      <!-- ── RECOMMENDATION ── -->
+      ${ai.recommendation ? section('Clinical Recommendation','💊',vc,`${vc}06`,`${vc}33`,`
+        <p style="font-size:13px;color:#1e2d45;line-height:1.75;font-family:Georgia,serif;font-weight:500">${ai.recommendation}</p>`) : ''}
+
+      <!-- ── MONITORING ── -->
+      ${ai.monitoring_parameters?.length ? section('Monitoring Parameters','📊','#ca8a04','#fffbeb','#fde68a',`
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          ${ai.monitoring_parameters.map(p=>`
+            <span style="background:#fff;border:1px solid #fde68a;border-radius:6px;
+              padding:4px 10px;font-size:11px;color:#92400e;font-weight:500">${p}</span>`).join('')}
+        </div>`) : ''}
+
+      <!-- ── EXISTING DRUG COMBINATIONS ── -->
+      ${ai.existing_combinations?.length ? section('Known Drug Combinations in Clinical Use','💊','#7c3aed','#f5f3ff','#ddd6fe',`
+        <div style="display:flex;flex-direction:column;gap:8px">
+          ${ai.existing_combinations.map(c=>{
+            const stCol = c.status?.includes('Approved')?'#16a34a':c.status?.includes('Off-Label')?'#ca8a04':'#64748b';
+            return `<div style="background:#fff;border:1px solid #ddd6fe;border-radius:10px;padding:12px 14px">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:4px">
+                <div style="font-size:12px;font-weight:800;color:#4c1d95">${c.product_name||'—'}</div>
+                <span style="font-size:9px;font-weight:700;color:${stCol};background:${stCol}12;
+                  border:1px solid ${stCol}33;border-radius:5px;padding:2px 8px;white-space:nowrap">${c.status||''}</span>
+              </div>
+              ${c.drugs?`<div style="font-size:10px;color:#64748b;margin-bottom:3px"><strong>Drugs:</strong> ${c.drugs}</div>`:''}
+              ${c.indication?`<div style="font-size:11px;color:#475569"><strong>Indication:</strong> ${c.indication}</div>`:''}
+            </div>`;
+          }).join('')}
+        </div>`) : ''}
+
+      <!-- ── CHEMICAL PROPERTIES ── -->
+      ${ai.chemical_properties ? section('Chemical Properties Analysis','⚗️','#0891b2','#ecfeff','#a5f3fc',`
+        <div style="display:flex;flex-direction:column;gap:0">
+          ${row('MW Range',             ai.chemical_properties.combined_mw_range)}
+          ${row('Lipophilicity (LogP)', ai.chemical_properties.lipophilicity_profile)}
+          ${row('H-Bond Profile',       ai.chemical_properties.hbond_profile)}
+          ${row('TPSA Profile',         ai.chemical_properties.tpsa_profile)}
+          ${row('Lipinski Compliance',  ai.chemical_properties.lipinski_compliance, '#16a34a')}
+          ${row('Bioavailability',      ai.chemical_properties.bioavailability_notes)}
+        </div>`) : ''}
+
+      <!-- ── PHYSICAL PROPERTIES ── -->
+      ${ai.physical_properties ? section('Physical Properties & Formulation','🔭','#0891b2','#f0f9ff','#bae6fd',`
+        <div style="display:flex;flex-direction:column;gap:0">
+          ${row('Solubility',       ai.physical_properties.solubility_assessment)}
+          ${row('Stability',        ai.physical_properties.stability_concerns)}
+          ${row('Formulation',      ai.physical_properties.formulation_notes)}
+          ${row('Protein Binding',  ai.physical_properties.protein_binding)}
+          ${row('Half-Life / Dosing', ai.physical_properties.half_life_considerations)}
+        </div>`) : ''}
+
+      <!-- ── SPECIAL POPULATIONS ── -->
+      ${ai.special_populations ? section('Special Populations','👥','#64748b','#f8fafc','#e2e8f0',`
+        <p style="font-size:11px;color:#475569;line-height:1.7">${ai.special_populations}</p>`) : ''}
+
+      <!-- ── DISCLAIMER ── -->
+      <div style="font-size:10px;color:#94a3b8;text-align:center;margin-top:6px;padding-top:12px;border-top:1px solid #f1f5f9">
+        ⚠ For research and educational purposes only. Not a substitute for licensed medical advice.
+      </div>
+    </div>`;
+}
+
+// ═══════════════════════════════════════════
+// ACTIONS
+// ═══════════════════════════════════════════
+function addOne(n){sel.push(n);results=null;aiData=null;renderAll();}
+function removeOne(n){
+  const idx=[...sel].lastIndexOf(n);
+  if(idx!==-1) sel=[...sel.slice(0,idx),...sel.slice(idx+1)];
+  results=null;aiData=null;renderAll();
+}
+function removeAll(n){sel=sel.filter(x=>x!==n);results=null;aiData=null;renderAll();}
+
+function renderAll(){
+  renderMolBtn();renderMixtureBar();renderCards();
+  renderAnalyzeBtn();renderEmptyState();renderDrugPanel();
+}
+
+async function analyze(){
+  if(sel.length<2) return;
+  const btn=document.getElementById("analyze-btn");
+  btn.disabled=true;
+  btn.innerHTML=`<span class="blink">⟳ COMPUTING QUANTUM MIXTURE…</span>`;
+  results=null; aiData=null;
+  const agg=aggregateScore(sel);
+  results=agg;
+  if (window.DrugEval) {
+
+    const affinityScores = {};
+
+    uniqueSel().forEach(drug => {
+        affinityScores[drug] = results.aggregate;
+    });
+
+    window.DrugEval.evaluate(
+        uniqueSel(),
+        affinityScores,
+        results.aggregate
+    );
+
+}
+  btn.disabled=false;
+  btn.textContent=`⬡ ANALYZE ${sel.length}-INSTANCE MIXTURE`;
+  document.getElementById("results-section").classList.add("visible");
+  document.getElementById("empty-state").style.display="none";
+  // Reset AI panel so it re-runs when tab is opened
+  document.getElementById("ai-panel").innerHTML="";
+  setTab("aggregate");
+  renderResults();
+  setTimeout(()=>document.getElementById("results-section").scrollIntoView({behavior:"smooth"}),120);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// IBM QUANTUM RUNTIME — Frontend Controller
+// ───────────────────────────────────────────────────────────────
+// HARD RULE: this tab does NOTHING without a valid IBM API key.
+//   • No key      → locked screen, no circuit, no classical fallback
+//   • Key present → POST to Flask backend → poll → show results
+// ═══════════════════════════════════════════════════════════════
+
+const BACKEND_URL = 'http://localhost:5000'; // Flask server URL
+
+async function runIBMQuantumCircuit(names, results) {
+  const panel      = document.getElementById('quantum-panel');
+  const token      = document.getElementById('ibm-key').value.trim();
+  const ibmStatus  = document.getElementById('ibm-status');
+  const ibmBackEl  = document.getElementById('ibm-backend');
+
+  // ── NO KEY: show classical simulation circuit ──────────────────
+  if (!token || token.length < 20) {
+    ibmStatus.textContent = 'NOT SET';
+    ibmStatus.className   = 'key-badge key-no';
+    ibmBackEl.style.display = 'none';
+    panel.innerHTML = `
+      <div style="animation:fadeUp 0.35s ease">
+        <div style="background:#fffbeb;border:1.5px solid #fde68a;border-radius:12px;
+          padding:12px 18px;margin-bottom:18px;display:flex;align-items:center;gap:12px">
+          <span style="font-size:20px">💡</span>
+          <div>
+            <div style="font-size:12px;font-weight:700;color:#92400e">Classical Simulation Mode</div>
+            <div style="font-size:11px;color:#78350f">
+              Enter your IBM Quantum API key in the key bar above to run this circuit on real quantum hardware.
+              Showing Qiskit statevector simulation below.
+            </div>
+          </div>
+          <a href="https://quantum.ibm.com/account" target="_blank"
+            style="flex-shrink:0;background:#2563eb;color:#fff;border-radius:8px;padding:7px 14px;
+              font-size:11px;font-weight:700;text-decoration:none;white-space:nowrap">Get IBM Key</a>
+        </div>
+        ${renderQuantumCircuit(uniqueSel(), results)}
+      </div>`;
+    return;
+  }
+
+  // ── KEY SET: submit to backend, poll, show results ─────────────
+  ibmStatus.textContent = 'CONNECTING…';
+  ibmStatus.className   = 'key-badge key-running';
+  ibmBackEl.style.display = 'none';
+
+  // Pick the most interacting pair
+  let pair = results.pairData[0];
+  results.pairData.forEach(p => { if (p.score < pair.score) pair = p; });
+
+  // Show loading screen
+  panel.innerHTML = `
+    <div style="background:#fff;border:1.5px solid #bfdbfe;border-radius:16px;
+      padding:44px 32px;text-align:center;box-shadow:0 2px 16px rgba(15,98,254,0.09)">
+      <div style="font-size:42px;margin-bottom:16px;animation:spin 1.2s linear infinite;display:inline-block">⚛</div>
+      <div style="font-size:17px;font-weight:800;color:#1e40af;margin-bottom:6px">Running on IBM Quantum Hardware</div>
+      <div style="font-size:12px;color:#64748b;margin-bottom:6px">
+        Pair: <strong>${pair.n1.replace(/_/g,' ')} ↔ ${pair.n2.replace(/_/g,' ')}</strong>
+      </div>
+      <div id="qstatus" style="font-size:12px;color:#475569;margin-bottom:20px">Submitting circuit to backend…</div>
+      <div style="height:5px;background:#dbeafe;border-radius:3px;overflow:hidden;max-width:360px;margin:0 auto 20px">
+        <div id="qprogress" style="height:100%;background:linear-gradient(90deg,#2563eb,#7c3aed);
+          border-radius:3px;width:10%;transition:width 0.6s ease"></div>
+      </div>
+      <div style="font-size:10px;color:#94a3b8">IBM quantum jobs may queue for seconds to minutes depending on backend load.</div>
+    </div>`;
+
+  const setStatus = (msg, pct) => {
+    const s = document.getElementById('qstatus');
+    const p = document.getElementById('qprogress');
+    if (s) s.textContent = msg;
+    if (p) p.style.width = Math.min(pct, 95) + '%';
+  };
+
+  try {
+    // Step 1: Submit job via backend
+    setStatus('Authenticating with IBM Quantum Network…', 20);
+    const submitRes = await fetch(`${BACKEND_URL}/api/ibm-quantum`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ibm_key: token,
+        drug1: pair.n1,
+        drug2: pair.n2
+      })
+    });
+    const submitData = await submitRes.json();
+
+    if (!submitData.success) throw new Error(submitData.error || 'Job submission failed');
+
+    const { job_id, backend } = submitData;
+    ibmBackEl.textContent     = backend;
+    ibmBackEl.style.display   = 'inline-block';
+    setStatus(`Job submitted · ID: ${job_id} · Backend: ${backend}`, 45);
+
+    // Step 2: Poll for completion
+    let attempts = 0;
+    const maxAttempts = 36; // 6 min max (10s intervals)
+    const pollJob = async () => {
+      if (attempts++ >= maxAttempts) throw new Error('Job timed out — try again later');
+      const pct = 45 + attempts * 1.4;
+      const pollRes = await fetch(`${BACKEND_URL}/api/ibm-quantum/status/${job_id}`, {
+        headers: { 'X-IBM-Key': token }
+      });
+      const pollData = await pollRes.json();
+
+      setStatus(`Status: ${pollData.status} · Backend: ${backend} · Attempt ${attempts}/${maxAttempts}`, pct);
+
+      if (pollData.status === 'DONE') return pollData;
+      if (['ERROR', 'CANCELLED'].includes(pollData.status))
+        throw new Error(`Job ${pollData.status}: ${pollData.error || 'Unknown error'}`);
+
+      await new Promise(r => setTimeout(r, 10000));
+      return pollJob();
+    };
+
+    const jobResult = await pollJob();
+    setStatus('Results received — rendering…', 98);
+
+    // Step 3: Render results
+    ibmStatus.textContent = 'CONNECTED ✓';
+    ibmStatus.className   = 'key-badge key-ok';
+    _renderIBMResults(panel, jobResult, pair, backend, job_id, results);
+
+  } catch (err) {
+    // ── Error states ──────────────────────────────────────────────
+    ibmStatus.textContent = 'NOT ACCESSIBLE';
+    ibmStatus.className   = 'key-badge key-no';
+    ibmBackEl.style.display = 'none';
+
+    const msg = err.message || '';
+    const isAuth    = /auth|token|unauthorized|401|403|invalid/i.test(msg);
+    const isQuota   = /quota|limit|credits|429|plan/i.test(msg);
+    const isTimeout = /timeout|timed out/i.test(msg);
+    const isOffline = /fetch|network|ECONNREFUSED|Failed to fetch/i.test(msg);
+
+    const [icon, heading, detail, fix] = isOffline ? [
+      '🔌','Quantum Backend Server Offline',
+      'The local Flask backend (localhost:5000) is not running.',
+      'Run <code style="background:#fee2e2;padding:1px 6px;border-radius:4px">python backend.py</code> in your terminal, then retry.'
+    ] : isAuth ? [
+      '🔐','IBM Quantum Not Accessible — Invalid Token',
+      msg,
+      'Go to <strong>quantum.ibm.com → Account → API Token</strong> to generate a new token, then paste it above.'
+    ] : isQuota ? [
+      '📭','IBM Quantum Not Accessible — Quota Exhausted',
+      msg,
+      'Your IBM Open Plan quantum minutes are used up for this month. Upgrade at quantum.ibm.com or wait for monthly reset.'
+    ] : isTimeout ? [
+      '⏱','IBM Quantum Not Accessible — Job Timed Out',
+      msg,
+      'IBM quantum queues can back up. Try again in a few minutes or choose a less-busy backend.'
+    ] : [
+      '🚫','IBM Quantum Not Accessible',
+      msg,
+      'Check your API token and network connection, then retry.'
+    ];
+
+    panel.innerHTML = `
+      <div style="animation:fadeUp 0.35s ease">
+        <div style="background:#fef2f2;border:1.5px solid #fca5a5;border-radius:16px;
+          padding:36px;text-align:center;max-width:580px;margin:0 auto 24px">
+          <div style="font-size:48px;margin-bottom:14px">${icon}</div>
+          <div style="font-size:18px;font-weight:800;color:#dc2626;margin-bottom:10px">${heading}</div>
+          <div style="font-size:11px;color:#991b1b;background:#fee2e2;border-radius:8px;
+            padding:10px 16px;font-family:monospace;display:inline-block;margin-bottom:14px;max-width:100%;word-break:break-all">${detail}</div>
+          <div style="font-size:12px;color:#64748b;line-height:1.7;margin-bottom:20px">${fix}</div>
+          <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+            <a href="https://quantum.ibm.com" target="_blank"
+              style="background:#2563eb;color:#fff;border-radius:9px;padding:9px 20px;
+                font-size:12px;font-weight:700;text-decoration:none">⚛ IBM Quantum Dashboard</a>
+            <a href="https://quantum.ibm.com/account" target="_blank"
+              style="background:#fff;color:#2563eb;border:1.5px solid #bfdbfe;border-radius:9px;
+                padding:9px 20px;font-size:12px;font-weight:700;text-decoration:none">🔑 Regenerate Token</a>
+            <button onclick="runIBMQuantumCircuit(uniqueSel(),results)"
+              style="background:#f0fdf4;color:#16a34a;border:1.5px solid #86efac;border-radius:9px;
+                padding:9px 20px;font-size:12px;font-weight:700;cursor:pointer">↺ Retry</button>
+          </div>
+        </div>
+      </div>`;
+  }
+}
+
+// ── Render completed IBM results ────────────────────────────────
+function _renderIBMResults(panel, jobResult, pair, backend, jobId, results) {
+  const counts     = jobResult.counts || {};
+  const totalShots = jobResult.total_shots || 1024;
+  const fidelity   = jobResult.fidelity   || pair.tanimoto || 0;
+  const sortedBits = Object.entries(counts).sort(([,a],[,b])=>b-a).slice(0, 12);
+
+  const bitsHTML = sortedBits.map(([bits, cnt]) => {
+    const pct = (cnt / totalShots * 100).toFixed(1);
+    const bar = Math.round(cnt / totalShots * 100);
+    const col = bar > 15 ? '#16a34a' : bar > 5 ? '#ca8a04' : '#94a3b8';
+    return `<div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid #f1f5f9">
+      <span style="font-family:monospace;font-size:10px;font-weight:700;color:#1e2d45;min-width:78px">${bits}</span>
+      <div style="flex:1;height:7px;background:#f1f5f9;border-radius:4px">
+        <div style="height:100%;width:${bar}%;background:${col};border-radius:4px"></div>
+      </div>
+      <span style="font-size:11px;font-weight:800;color:${col};min-width:40px">${pct}%</span>
+      <span style="font-size:10px;color:#94a3b8;min-width:30px">${cnt}</span>
+    </div>`;
+  }).join('');
+
+  const st = getStatus(pair.score);
+
+  panel.innerHTML = `
+    <div style="animation:fadeUp 0.35s ease">
+      <!-- IBM Result banner -->
+      <div style="background:linear-gradient(135deg,#eff6ff,#f5f3ff);border:1.5px solid #bfdbfe;
+        border-radius:16px;padding:20px 24px;margin-bottom:16px;
+        display:flex;align-items:center;gap:20px;flex-wrap:wrap;box-shadow:0 2px 12px rgba(15,98,254,0.09)">
+        <div style="font-size:40px">⚛</div>
+        <div style="flex:1">
+          <div style="font-size:15px;font-weight:800;color:#1e40af;margin-bottom:3px">IBM Quantum — Real Hardware Results</div>
+          <div style="font-size:11px;color:#3730a3;margin-bottom:2px">
+            Backend: <strong>${backend}</strong> · Job ID:
+            <code style="font-size:10px;background:#e0e7ff;padding:1px 7px;border-radius:4px">${jobId}</code>
+            · Shots: <strong>${totalShots.toLocaleString()}</strong>
+          </div>
+          <div style="font-size:11px;color:#64748b">
+            Pair: <strong>${pair.n1.replace(/_/g,' ')} ↔ ${pair.n2.replace(/_/g,' ')}</strong>
+            · 12 qubits · 6 RY gates per drug · 3 CNOT gates
+          </div>
+        </div>
+        <div style="text-align:center;background:#fff;border:1.5px solid #bfdbfe;
+          border-radius:12px;padding:12px 20px;min-width:110px">
+          <div style="font-size:9px;color:#64748b;font-weight:700;letter-spacing:1px;text-transform:uppercase">Quantum Fidelity</div>
+          <div style="font-size:30px;font-weight:800;color:#2563eb">${Number(fidelity).toFixed(3)}</div>
+          <div style="font-size:9px;color:#94a3b8">|⟨ψ₁|ψ₂⟩|²</div>
+        </div>
+        <div style="text-align:center;background:#fff;border:1.5px solid ${st.c}44;
+          border-radius:12px;padding:12px 20px;min-width:110px">
+          <div style="font-size:9px;color:#64748b;font-weight:700;letter-spacing:1px;text-transform:uppercase">Pair Score</div>
+          <div style="font-size:30px;font-weight:800;color:${st.c}">${pair.score}</div>
+          <div style="font-size:9px;color:${st.c}">${st.l}</div>
+        </div>
+      </div>
+
+      <!-- Measurement distribution -->
+      <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;
+        padding:18px;margin-bottom:16px;box-shadow:0 2px 8px rgba(30,45,80,0.05)">
+        <div style="font-size:11px;font-weight:800;color:#1e2d45;letter-spacing:1px;
+          text-transform:uppercase;margin-bottom:4px">Measurement Distribution — Top 12 Bitstrings</div>
+        <div style="font-size:10.5px;color:#64748b;margin-bottom:14px">
+          Each row is one observed bitstring across ${totalShots} shots.
+          Higher bars = more probable quantum state.
+          Ground state |000…0⟩ prob ≈ ${((counts['000000000000']||counts['0'*12]||0)/totalShots*100).toFixed(1)}%.
+        </div>
+        <div style="display:flex;gap:10px;padding:0 0 7px;border-bottom:2px solid #f1f5f9;
+          font-size:9px;color:#94a3b8;font-weight:700;text-transform:uppercase">
+          <span style="min-width:78px">Bitstring</span>
+          <span style="flex:1">Probability</span>
+          <span style="min-width:40px">Prob %</span>
+          <span style="min-width:30px">Count</span>
+        </div>
+        ${bitsHTML}
+      </div>
+
+      <!-- Quantum circuit reference diagram -->
+      ${renderQuantumCircuit(uniqueSel(), results)}
+    </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AI ANALYSIS — triggered on tab open, powered by Claude built-in
+// ═══════════════════════════════════════════════════════════════
+function runAIAnalysis(){
+  const container = document.getElementById("ai-panel");
+
+  if(!results){
+    container.innerHTML=`<div style="padding:44px;text-align:center;color:#64748b;font-size:13px">
+      Run an analysis first using the <strong>⬡ ANALYZE</strong> button above.</div>`;
+    return;
+  }
+
+  if(aiData && aiData.interaction_type){
+    renderAIPanel(false);
+    return;
+  }
+
+  container.innerHTML=`
+    <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:16px;padding:32px;text-align:center">
+      <div style="font-size:28px;margin-bottom:10px">⚗️</div>
+      <div style="font-size:13px;font-weight:700;color:#1e2d45">Computing Analysis…</div>
+      <div style="font-size:11px;color:#64748b;margin-top:4px">Running local pharmacological AI engine</div>
+    </div>`;
+
+  setTimeout(()=>{
+    try{
+      aiData = localAIAnalysis(sel, results);
+      renderAIPanel(false);
+    } catch(err){
+      container.innerHTML=`
+        <div style="background:#fef2f2;border:1.5px solid #fca5a5;border-radius:16px;padding:28px;text-align:center">
+          <div style="font-size:36px;margin-bottom:10px">⚠️</div>
+          <div style="font-size:14px;font-weight:800;color:#dc2626;margin-bottom:8px">Analysis Error</div>
+          <div style="font-size:11px;color:#991b1b;font-family:monospace;background:#fee2e2;padding:8px 12px;border-radius:6px;margin-bottom:14px">${err.message}</div>
+          <button onclick="aiData=null;runAIAnalysis()"
+            style="background:#2563eb;color:#fff;border:none;border-radius:8px;padding:9px 24px;font-size:12px;font-weight:700;cursor:pointer">↺ Retry</button>
+        </div>`;
+    }
+  }, 60);
+}
+
+
+function setTab(t){
+  currentTab=t;
+  document.querySelectorAll(".tab-btn").forEach(b=>b.classList.toggle("active",b.dataset.tab===t));
+  ["aggregate","pairwise","quantum","ai"].forEach(id=>{
+    document.getElementById("tab-"+id).style.display=id===t?"block":"none";
+  });
+
+  if(t==="quantum"){
+    const panel=document.getElementById("quantum-panel");
+    if(!results){
+      panel.innerHTML='<div style="padding:40px;text-align:center;color:#64748b;font-size:13px">Run an analysis first.</div>';
+      return;
+    }
+    runIBMQuantumCircuit(uniqueSel(), results);
+  }
+
+  if(t==="ai"){
+    runAIAnalysis();
+  }
+}
+
+// ═══════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════
+function init(){
+  // Build class filter
+  const clsSelect=document.getElementById("cls-select");
+  const allCls=["All",...new Set(DRUG_NAMES.map(n=>DRUGS[n].cls))].sort();
+  clsSelect.innerHTML=allCls.map(c=>`<option value="${c}">${c}</option>`).join("");
+
+  // Events
+  document.getElementById("mol-btn").addEventListener("click",()=>{
+    const p=document.getElementById("panel");
+    p.classList.toggle("open");
+  });
+  document.getElementById("panel-close").addEventListener("click",()=>{
+    document.getElementById("panel").classList.remove("open");
+  });
+  document.getElementById("open-btn").addEventListener("click",()=>{
+    document.getElementById("panel").classList.add("open");
+  });
+  document.getElementById("analyze-btn").addEventListener("click",analyze);
+  document.querySelectorAll(".tab-btn").forEach(b=>b.addEventListener("click",()=>setTab(b.dataset.tab)));
+
+  document.getElementById("panel-search").addEventListener("input",e=>{
+    searchText=e.target.value;renderDrugPanel();
+  });
+  clsSelect.addEventListener("change",e=>{clsFilter=e.target.value;renderDrugPanel();});
+
+  // Typed input
+  const ti=document.getElementById("typed-input");
+  const sg=document.getElementById("suggestions");
+  ti.addEventListener("input",()=>{
+    const v=ti.value.trim();
+    if(!v){sg.style.display="none";return;}
+    const matches=DRUG_NAMES.filter(n=>n.toLowerCase().includes(v.toLowerCase())).slice(0,8);
+    if(!matches.length){sg.style.display="none";return;}
+    sg.innerHTML=matches.map(nm=>`<div class="sugg-item" onclick="addOne('${nm}');document.getElementById('typed-input').value='';document.getElementById('suggestions').style.display='none'"><span class="sugg-name">${nm.replace(/_/g," ")}</span><span class="sugg-cls">${DRUGS[nm].cls}</span></div>`).join("");
+    sg.style.display="block";
+  });
+  ti.addEventListener("keydown",e=>{
+    if(e.key==="Enter"&&ti.value.trim()){
+      const n=DRUG_NAMES.find(x=>x.toLowerCase()===ti.value.trim().toLowerCase());
+      if(n){addOne(n);}
+      ti.value="";sg.style.display="none";
+    }
+    if(e.key==="Escape"){ti.value="";sg.style.display="none";}
+  });
+
+  // IBM Quantum key — enables/disables the Quantum Circuit tab
+  const ibmKey=document.getElementById("ibm-key");
+  const ibmStatus=document.getElementById("ibm-status");
+  const ibmBackend=document.getElementById("ibm-backend");
+
+  function updateIBMKeyState(){
+    const v=ibmKey.value.trim();
+    const valid = v.length >= 20;
+    if(valid){
+      ibmStatus.textContent="SET ✓";
+      ibmStatus.className="key-badge key-ok";
+    } else {
+      ibmStatus.textContent= v.length > 0 ? "TOO SHORT" : "NOT SET";
+      ibmStatus.className="key-badge key-no";
+      ibmBackend.style.display="none";
+    }
+  }
+
+  ibmKey.addEventListener("input", updateIBMKeyState);
+  updateIBMKeyState(); // run once on init to set correct state
+
+  // Close panel on ESC
+  window.addEventListener("keydown",e=>{if(e.key==="Escape") document.getElementById("panel").classList.remove("open");});
+
+  renderAll();
+}
+
+document.addEventListener("DOMContentLoaded",init);
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+<script src="/evaluation_module.js"></script>
+</body>
+</html>

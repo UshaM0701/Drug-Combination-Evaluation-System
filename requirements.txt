@@ -1,0 +1,17 @@
+# Drug Molecular Affinity Analyzer — Python Backend Dependencies
+# Install: pip install -r requirements.txt
+
+# Web framework
+flask>=3.0.0
+flask-cors>=4.0.0
+
+# Qiskit — quantum simulation (statevector, no IBM account needed)
+qiskit>=1.1.0
+qiskit-aer>=0.14.0          # Optional: Aer simulator backend
+# Note: StatevectorSimulator used here runs locally via qiskit.quantum_info
+
+# OpenAI client
+openai>=1.30.0
+
+# Utilities
+python-dotenv>=1.0.0        # Load OPENAI_API_KEY from .env file

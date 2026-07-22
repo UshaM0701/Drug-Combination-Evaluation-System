@@ -1,0 +1,6 @@
+# Optional extras for the Advanced Drug Evaluation module.
+# Install any subset — the module degrades gracefully.
+
+rdkit-pypi>=2022.9.5      # Real descriptors from SMILES + structural alerts
+admet-ai>=1.4.0           # Swanson et al. 2023 Chemprop ADMET overlay
+# deepchem>=2.8.0         # Optional: MoleculeNet Tox21 access (heavy install)
